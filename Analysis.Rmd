@@ -1,0 +1,3825 @@
+---
+title: "Analysis"
+author: "CCP"
+date: "Last Updated: 06.14.2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Install Libraries and Packages
+```{r, echo=FALSE}
+library(foreign)
+library(tidyverse)
+library(magrittr)
+library(readxl)
+library(ggsci)
+library(lmerTest)
+library(ggpubr)
+library(blme)
+library(spatstat)
+library(usmap)
+#devtools::install_github("UrbanInstitute/urbnmapr")
+library(urbnmapr)
+library(maps)
+library(gganimate)
+library(transformr)
+#install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE)
+library("INLA")
+library(gifski)
+library(png)
+library(zoo)
+library(scales)
+library(reshape2)
+library(sf)
+library(ggthemes)
+library(survey)
+options(survey.lonely.psu = "adjust")
+library(cowplot)
+library(weights)
+#remotes::install_github("coolbutuseless/ggpattern")
+library(ggpattern)
+```
+
+
+## Read in Data
+```{r}
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+NYC_2019 <- read.dbf("201021_2019_NewYork.dbf")
+NYC_2018 <- read.dbf("201021_2018_NewYork.dbf")
+NYC_2017 <- read.dbf("201019_2017_NewYork.dbf")
+NYC_2016 <- read.dbf("201019_2016_NewYork.dbf")
+NYC_2015 <- read.dbf("201016_2015_NewYork.dbf")
+NYC_2014 <- read.dbf("201019_2014_NewYork.dbf")
+NYC_2013 <- read.dbf("201019_2013_NewYork.dbf")
+NYC_2012 <- read.dbf("201019_2012_NewYork.dbf")
+NYC_2011 <- read.dbf("201016_2011_NewYork.dbf")
+
+Philadelphia_2019 <- read.dbf("201014_2019_Philadelphia.dbf")
+Philadelphia_2018 <- read.dbf("201014_2018_Philadelphia.dbf")
+Philadelphia_2017 <- read.dbf("201015_2017_Philadelphia.dbf")
+Philadelphia_2016 <- read.dbf("201015_2016_Philadelphia.dbf")
+Philadelphia_2015 <- read.dbf("201015_2015_Philadelphia.dbf")
+Philadelphia_2014 <- read.dbf("201016_2014_Philadelphia.dbf")
+Philadelphia_2013 <- read.dbf("201016_2013_Philadelphia.dbf")
+Philadelphia_2012 <- read.dbf("201016_2012_Philadelphia.dbf")
+Philadelphia_2011 <- read.dbf("201122_2011_Philadelphia.dbf")
+
+Atlanta_2019 <- read.dbf("201014_2019_Atlanta.dbf")
+Atlanta_2018 <- read.dbf("201014_2018_Atlanta.dbf")
+Atlanta_2017 <- read.dbf("201014_2017_Atlanta.dbf")
+Atlanta_2016 <- read.dbf("201014_2016_Atlanta.dbf")
+Atlanta_2015 <- read.dbf("201013_2015_Atlanta.dbf")
+Atlanta_2014 <- read.dbf("201013_2014_Atlanta.dbf")
+Atlanta_2013 <- read.dbf("201012_2013_Atlanta.dbf")
+Atlanta_2012 <- read.dbf("201012_2012_Atlanta.dbf")
+Atlanta_2011 <- read.dbf("201012_2011_Atlanta.dbf")
+
+Chicago_2019 <- read.dbf("201009_2019_Chicago.dbf")
+Chicago_2018 <- read.dbf("201025_2018_Chicago.dbf")
+Chicago_2017 <- read.dbf("201009_2017_Chicago.dbf")
+Chicago_2016 <- read.dbf("201009_2016_Chicago.dbf")
+Chicago_2015 <- read.dbf("201009_2015_Chicago.dbf")
+Chicago_2014 <- read.dbf("201012_2014_Chicago.dbf")
+Chicago_2013 <- read.dbf("201012_2013_Chicago.dbf")
+Chicago_2012 <- read.dbf("201012_2012_Chicago.dbf")
+Chicago_2011 <- read.dbf("201012_2011_Chicago.dbf")
+
+Denver_2019 <- read.dbf("201024_2019_Denver.dbf")
+Denver_2018 <- read.dbf("201024_2018_Denver.dbf")
+Denver_2017 <- read.dbf("201024_2017_Denver.dbf")
+Denver_2016 <- read.dbf("201024_2016_Denver.dbf")
+Denver_2015 <- read.dbf("201024_2015_Denver.dbf")
+Denver_2014 <- read.dbf("201024_2014_Denver.dbf")
+Denver_2013 <- read.dbf("201023_2013_Denver.dbf")
+Denver_2012 <- read.dbf("201022_2012_Denver.dbf")
+Denver_2011 <- read.dbf("201022_2011_Denver.dbf")
+
+LosAngeles_2019 <- read.dbf("201021_2019_LosAngeles.dbf")
+LosAngeles_2018 <- read.dbf("201021_2018_LosAngeles.dbf")
+LosAngeles_2017 <- read.dbf("201021_2017_LosAngeles.dbf")
+LosAngeles_2016 <- read.dbf("201021_2016_LosAngeles.dbf")
+LosAngeles_2015 <- read.dbf("201021_2015_LosAngeles.dbf")
+LosAngeles_2014 <- read.dbf("201021_2014_LosAngeles.dbf")
+LosAngeles_2013 <- read.dbf("201022_2013_LosAngeles.dbf")
+LosAngeles_2012 <- read.dbf("201022_2012_LosAngeles.dbf")
+LosAngeles_2011 <- read.dbf("201022_2011_LosAngeles.dbf")
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+hospitals_2019 <- read.csv("201009_Hospitals_2019_NC_Adult.csv")
+setwd("~/Documents/GitHub/ObesityCertification/Scripts")
+final_diplomates <- read.csv("200811_HospitalsWithLocations_NoGeocode.csv") #Read in file
+address_no_hospital <- read.csv("200811_HospitalsAddressOnly_NoGeocode.csv") #Save
+originally_missed_hospitals <- read.csv("200811_OriginallyMissedHospitals_NoGeocode.csv") #Save
+originally_missed_address <- read.csv("200811_OriginallyMissedAddresses_NoGeocode.csv")
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+originally_missed <- read.csv('200504_MissingData.csv', stringsAsFactors = FALSE)
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+hospitals_2019 <- read.csv("201009_Hospitals_2019_NC_Adult.csv")
+hospitals_2018 <- read.csv("201009_Hospitals_2018_NC_Adult.csv")
+hospitals_2017 <- read.csv("201009_Hospitals_2017_NC_Adult.csv")
+hospitals_2016 <- read.csv("201009_Hospitals_2016_NC_Adult.csv")
+hospitals_2015 <- read.csv("201009_Hospitals_2015_NC_Adult.csv")
+hospitals_2014 <- read.csv("201009_Hospitals_2014_NC_Adult.csv")
+hospitals_2013 <- read.csv("201009_Hospitals_2013_NC_Adult.csv")
+hospitals_2012 <- read.csv("201009_Hospitals_2012_NC_Adult.csv")
+hospitals_2011 <- read.csv("201009_Hospitals_2011_NC_Adult.csv")
+
+setwd("~/Documents/GitHub/ObesityCertification/Scripts")
+obesity_2011 <- read.csv("obesity_2011.csv")
+obesity_2012 <- read.csv("obesity_2012.csv")
+obesity_2013 <- read.csv("obesity_2013.csv")
+obesity_2014 <- read.csv("obesity_2014.csv")
+obesity_2015 <- read.csv("obesity_2015.csv")
+obesity_2016 <- read.csv("obesity_2016.csv")
+obesity_2017 <- read.csv("obesity_2017.csv")
+obesity_2018 <- read.csv("obesity_2018.csv")
+obesity_2019 <- read.csv("obesity_2019.csv")
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+acs_2011_counties_new<- read.csv("210315_acs_2011_counties.csv")
+acs_2011_us_new<- read.csv("210315_acs_2011_us.csv")
+acs_2019_counties_new<- read.csv("210315_acs_2019_counties.csv")
+acs_2019_us_new<- read.csv("210315_acs_2019_us.csv")
+
+rucc <- read.csv("ruralurbancodes2013-2.csv")
+acs_2011 <- read.csv("200528_2011_ACSData.csv")
+acs_2011$year <- 2011
+acs_2012 <- read.csv("200528_2012_ACSData.csv")
+acs_2012$year <- 2012
+acs_2013 <- read.csv("200528_2013_ACSData.csv")
+acs_2013$year <- 2013
+acs_2014 <- read.csv("200528_2014_ACSData.csv")
+acs_2014$year <- 2014
+acs_2015 <- read.csv("200528_2015_ACSData.csv")
+acs_2015$year <- 2015
+acs_2016 <- read.csv("200528_2016_ACSData.csv")
+acs_2016$year <- 2016
+acs_2017 <- read.csv("200528_2017_ACSData.csv")
+acs_2017$year <- 2017
+acs_2018 <- read.csv("200528_2018_ACSData.csv")
+acs_2018$year <- 2018
+acs <- rbind(acs_2011, acs_2012, acs_2013, acs_2014, acs_2015, acs_2016, acs_2017, acs_2018)
+
+NYC_2019$Region <- "NYC"
+NYC_2019$Year <- 2019
+
+NYC_2018$Region <- "NYC"
+NYC_2018$Year <- 2018
+
+NYC_2017$Region <- "NYC"
+NYC_2017$Year <- 2017
+
+NYC_2016$Region <- "NYC"
+NYC_2016$Year <- 2016
+
+NYC_2015$Region <- "NYC"
+NYC_2015$Year <- 2015
+
+NYC_2014$Region <- "NYC"
+NYC_2014$Year <- 2014
+
+NYC_2013$Region <- "NYC"
+NYC_2013$Year <- 2013
+
+NYC_2012$Region <- "NYC"
+NYC_2012$Year <- 2012
+
+NYC_2011$Region <- "NYC"
+NYC_2011$Year <- 2011
+
+Philadelphia_2019$Region <- "Philadelphia"
+Philadelphia_2019$Year <- 2019
+
+Philadelphia_2018$Region <- "Philadelphia"
+Philadelphia_2018$Year <- 2018
+
+Philadelphia_2017$Region <- "Philadelphia"
+Philadelphia_2017$Year <- 2017
+
+Philadelphia_2016$Region <- "Philadelphia"
+Philadelphia_2016$Year <- 2016
+
+Philadelphia_2015$Region <- "Philadelphia"
+Philadelphia_2015$Year <- 2015
+
+Philadelphia_2014$Region <- "Philadelphia"
+Philadelphia_2014$Year <- 2014
+
+Philadelphia_2013$Region <- "Philadelphia"
+Philadelphia_2013$Year <- 2013
+
+Philadelphia_2012$Region <- "Philadelphia"
+Philadelphia_2012$Year <- 2012
+
+Philadelphia_2011$Region <- "Philadelphia"
+Philadelphia_2011$Year <- 2011
+
+Atlanta_2019$Region <- "Atlanta"
+Atlanta_2019$Year <- 2019
+
+Atlanta_2018$Region <- "Atlanta"
+Atlanta_2018$Year <- 2018
+
+Atlanta_2017$Region <- "Atlanta"
+Atlanta_2017$Year <- 2017
+
+Atlanta_2016$Region <- "Atlanta"
+Atlanta_2016$Year <- 2016
+
+Atlanta_2015$Region <- "Atlanta"
+Atlanta_2015$Year <- 2015
+
+Atlanta_2014$Region <- "Atlanta"
+Atlanta_2014$Year <- 2014
+
+Atlanta_2013$Region <- "Atlanta"
+Atlanta_2013$Year <- 2013
+
+Atlanta_2012$Region <- "Atlanta"
+Atlanta_2012$Year <- 2012
+
+Atlanta_2011$Region <- "Atlanta"
+Atlanta_2011$Year <- 2011
+
+Chicago_2019$Region <- "Chicago"
+Chicago_2019$Year <- 2019
+
+Chicago_2018$Region <- "Chicago"
+Chicago_2018$Year <- 2018
+
+Chicago_2017$Region <- "Chicago"
+Chicago_2017$Year <- 2017
+
+Chicago_2016$Region <- "Chicago"
+Chicago_2016$Year <- 2016
+
+Chicago_2015$Region <- "Chicago"
+Chicago_2015$Year <- 2015
+
+Chicago_2014$Region <- "Chicago"
+Chicago_2014$Year <- 2014
+
+Chicago_2013$Region <- "Chicago"
+Chicago_2013$Year <- 2013
+
+Chicago_2012$Region <- "Chicago"
+Chicago_2012$Year <- 2012
+
+Chicago_2011$Region <- "Chicago"
+Chicago_2011$Year <- 2011
+
+Denver_2019$Region <- "Denver"
+Denver_2019$Year <- 2019
+
+Denver_2018$Region <- "Denver"
+Denver_2018$Year <- 2018
+
+Denver_2017$Region <- "Denver"
+Denver_2017$Year <- 2017
+
+Denver_2016$Region <- "Denver"
+Denver_2016$Year <- 2016
+
+Denver_2015$Region <- "Denver"
+Denver_2015$Year <- 2015
+
+Denver_2014$Region <- "Denver"
+Denver_2014$Year <- 2014
+
+Denver_2013$Region <- "Denver"
+Denver_2013$Year <- 2013
+
+Denver_2012$Region <- "Denver"
+Denver_2012$Year <- 2012
+
+Denver_2011$Region <- "Denver"
+Denver_2011$Year <- 2011
+
+LosAngeles_2019$Region <- "Los Angeles"
+LosAngeles_2019$Year <- 2019
+
+LosAngeles_2018$Region <- "Los Angeles"
+LosAngeles_2018$Year <- 2018
+
+LosAngeles_2017$Region <- "Los Angeles"
+LosAngeles_2017$Year <- 2017
+
+LosAngeles_2016$Region <- "Los Angeles"
+LosAngeles_2016$Year <- 2016
+
+LosAngeles_2015$Region <- "Los Angeles"
+LosAngeles_2015$Year <- 2015
+
+LosAngeles_2014$Region <- "Los Angeles"
+LosAngeles_2014$Year <- 2014
+
+LosAngeles_2013$Region <- "Los Angeles"
+LosAngeles_2013$Year <- 2013
+
+LosAngeles_2012$Region <- "Los Angeles"
+LosAngeles_2012$Year <- 2012
+
+LosAngeles_2011$Region <- "Los Angeles"
+LosAngeles_2011$Year <- 2011
+
+TT_2019 <- rbind(NYC_2019, Philadelphia_2019, Atlanta_2019, Chicago_2019, Denver_2019, LosAngeles_2019)
+
+nyc <- rbind(NYC_2011, NYC_2012, NYC_2013, NYC_2014, NYC_2015, NYC_2016, NYC_2017, NYC_2018, NYC_2019)
+philadelphia <- rbind(Philadelphia_2011, Philadelphia_2012, Philadelphia_2013, Philadelphia_2014, Philadelphia_2015, Philadelphia_2016, Philadelphia_2017, Philadelphia_2018, Philadelphia_2019)
+atlanta <- rbind(Atlanta_2011, Atlanta_2012, Atlanta_2013, Atlanta_2014, Atlanta_2015, Atlanta_2016, Atlanta_2017, Atlanta_2018, Atlanta_2019)
+chicago <- rbind(Chicago_2011, Chicago_2012, Chicago_2013, Chicago_2014, Chicago_2015, Chicago_2016, Chicago_2017, Chicago_2018, Chicago_2019)
+denver <- rbind(Denver_2011, Denver_2012, Denver_2013, Denver_2014, Denver_2015, Denver_2016, Denver_2017, Denver_2018, Denver_2019)
+losangeles <- rbind(LosAngeles_2011, LosAngeles_2012, LosAngeles_2013, LosAngeles_2014, LosAngeles_2015, LosAngeles_2016, LosAngeles_2017, LosAngeles_2018, LosAngeles_2019)
+
+dat_all <- rbind(nyc, philadelphia, atlanta, chicago, denver, losangeles)
+raw_map <- rbind(nyc, philadelphia, atlanta, chicago, denver, losangeles)
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+filelist = list.files(pattern = "CenPop2010_Mean_TR.*.txt")
+datalist = lapply(filelist, function(x)read.csv(x)) 
+counties_tracts = do.call("rbind", datalist) 
+```
+
+# Split "Name" into Tract and Facility 
+```{r}
+dat_all %<>% 
+  separate(col = "Name", 
+           into = c("Name", "Hospital"), 
+           sep = " - ",
+           extra = "merge") #Separate out Census Tract and Hospital Information
+
+raw_map %<>% 
+  separate("Name",into = c("Name", "Hospital"),sep = " - ",remove = FALSE,extra = "merge")
+```
+
+## Combine Travel Time Data and Calculate Estimates for Each County
+Since each row correspond to a Census Block
+```{r}
+travel_times_county_all <- inner_join(dat_all, counties_tracts, by =  c("Name"))
+raw_map %<>% inner_join(counties_tracts, by = "Name")
+```
+
+## Combine with Obesity Prevalence Data
+```{r}
+obesity_all <- rbind(obesity_2011, obesity_2012, obesity_2013, obesity_2014, obesity_2015, obesity_2016, obesity_2017, obesity_2018, obesity_2019)
+
+obesity_all <- filter(obesity_all, is.na(County) == FALSE) %>%
+  mutate(COUNTYFP = case_when(
+    nchar(FIPS) == 4 ~ sub('.', '', FIPS), #When the FIPS code has four characters, replace the first character with nothing
+    nchar(FIPS) != 4 ~ substr(FIPS, 3, nchar(FIPS)) #When the FIPS code is not four, remove the first two characters
+  )) #So that FIPS code matches COUNTYFP
+
+obesity_all$COUNTYFP <- as.numeric(obesity_all$COUNTYFP) #Change to numeric
+
+obesity_all %<>% mutate(STATEFP = case_when(
+  nchar(FIPS) == 4 ~ str_trunc(obesity_all$FIPS, 1, side = c("right"), ellipsis = ""),
+  nchar(FIPS) != 4 ~ str_trunc(obesity_all$FIPS, 2, side = c("right"), ellipsis = "")
+)) #So that the State FP matches
+
+travel_times_county_all$STATEFP <- as.character(travel_times_county_all$STATEFP)
+travel_times_county_all$COUNTYFP <- as.character(travel_times_county_all$COUNTYFP)
+obesity_all$COUNTYFP <- as.character(obesity_all$COUNTYFP)
+
+dat_tt_all <- full_join(travel_times_county_all, obesity_all, by = c("STATEFP", "COUNTYFP", "Year")) %>%
+  group_by(STATEFP, COUNTYFP, Year) %>%
+  mutate("Median_Travel" = median(Total_Time)) #Calculate Median total travel time
+
+dat_tt_all$`X..Obese` <- as.numeric(dat_tt_all$`X..Obese` )
+
+## REPEAT BUT FOR RAW MAPPINGS
+raw_map$STATEFP <- as.character(raw_map$STATEFP)
+raw_map$COUNTYFP <- as.character(raw_map$COUNTYFP)
+
+raw_map %<>% 
+  full_join(obesity_all, by = c("STATEFP", "COUNTYFP", "Year")) %>%
+  group_by(STATEFP, COUNTYFP, Year)
+
+raw_map$`X..Obese` <- as.numeric(raw_map$`X..Obese` )
+##END OF REPEAT##
+
+dat_tt_one <- dat_tt_all %>%
+  distinct(State, County, Year, .keep_all = TRUE) %>%
+  arrange(State, County) #Keep only one row per County per Year
+
+dat_tt_one <- filter(dat_tt_one, is.na(ObjectID) == FALSE) #Removes participants without travel time
+dat_tt_one <- filter(dat_tt_one, is.na(X..Obese) == FALSE) #Removes areas without obesity
+
+dat_tt_one$County[which(dat_tt_one$County == "Jasper*")] <- "Jasper"
+dat_tt_one$County[which(dat_tt_one$County == "Newton*")] <- "Newton"
+
+county_counts <- dat_tt_one %>%
+  group_by(State, County) %>%
+  summarise(count = n()) %>%
+  filter(count < 9) %>%
+  arrange(., count) #Checking to see which countries dont' have 9 years of obesity data 
+
+#Remove counties with less than 11 years of obesity data
+
+dat_tt_one %<>% 
+  filter(County != "Bethel" & County != "Hoonah-Angoon" & County != "Prince of Wales-Hyder" & County != "Skagway" & County != "Wrangell" & County != "Oglala Lakota" & County != "Shannon" & County != "Honolulu" & County != "Maui" & County != "Bedford City" & County != "District of Columbia") #Removes counties that did not have 9 years of data
+#Check if every county-state pair exists the appropriate number of times
+pairs <- paste(dat_tt_one$State, dat_tt_one$County)
+length(unique(pairs))*9 == nrow(dat_tt_one) #Remember to replace the number by the number of years
+
+#Calculate the change in travel time between years
+states <- c()
+counties <- c()
+prevalence_change <- c()
+years <- c()
+for (i in 1:nrow(dat_tt_one)) {
+  print(i)
+  if (dat_tt_one[i,"Year"] != 2011) {
+    obesity_prevalence <- dat_tt_one[i, "X..Obese"] - dat_tt_one[i-1, "X..Obese"] #2019 - 2018
+    states <- c(states, dat_tt_one[i, "State"])
+    counties <- c(counties, dat_tt_one[i, "County"])
+    prevalence_change <- c(prevalence_change, obesity_prevalence)
+    years <- c(years, dat_tt_one[i, "Year"])
+  }
+}
+
+states <- as.character(unlist(states))
+counties <- as.character(unlist(counties))
+prevalence_change <- as.numeric(unlist(prevalence_change))
+years <- as.character(unlist(years))
+crosswalk <- as.data.frame(cbind(states, counties, prevalence_change, years))
+
+crosswalk$years <- as.numeric(as.character(crosswalk$years))
+dat_tt_one <- left_join(dat_tt_one, crosswalk, by = c("State" = "states", "County" = "counties", "Year" = "years")) %>%
+  distinct(State, County, Year, .keep_all = TRUE) #Adds prevalence change
+
+dat_tt_one$prevalence_change <- as.numeric(as.character(dat_tt_one$prevalence_change ))
+
+#Puts every state in a Census region
+dat_tt_one %<>% mutate(Census_Region = case_when(
+  State == "Maine" | State == "New Hampshire" | State == "Vermont" | State == "Massachusetts" | State == "Rhode Island" | State == "Connecticut" | State == "New York" | State == "New Jersey" | State == "Pennsylvania" ~ "Northeast",
+  
+  State == "Delaware" | State == "District of Columbia" | State == "Virginia" | State == "Maryland" | State == "West Virginia" | State == "North Carolina" | State == "South Carolina" | State == "Georgia" | State == "Florida" | State == "Mississippi" | State == "Alabama" | State == "Louisiana" | State == "Texas" | State == "Oklahoma" | State == "Arkansas" | State == "Tennessee" | State == "Kentucky"~ "South",
+  
+  State == "Ohio" | State == "Michigan" | State == "Wisconsin" | State == "Minnesota" | State == "North Dakota" | State == "South Dakota" | State == "Nebraska" | State == "Kansas" | State == "Iowa" | State == "Missouri" | State == "Illinois" | State == "Indiana" ~ "Midwest",
+  
+  State == "Alaska" | State == "Hawaii" | State == "Washington" | State == "Oregon" | State == "California" | State == "Nevada" | State == "Idaho" | State == "Arizona" | State == "New Mexico" | State == "Colorado" | State == "Wyoming" | State == "Montana" | State == "Utah" ~ "West"
+))
+
+#Removes nonstates
+dat_tt_one %<>% filter(is.na(Census_Region) == FALSE)
+
+##REPEAT FOR RAW MAPPING
+#Puts every state in a Census region
+raw_map %<>% mutate(Census_Region = case_when(
+  State == "Maine" | State == "New Hampshire" | State == "Vermont" | State == "Massachusetts" | State == "Rhode Island" | State == "Connecticut" | State == "New York" | State == "New Jersey" | State == "Pennsylvania" ~ "Northeast",
+  
+  State == "Delaware" | State == "District of Columbia" | State == "Virginia" | State == "Maryland" | State == "West Virginia" | State == "North Carolina" | State == "South Carolina" | State == "Georgia" | State == "Florida" | State == "Mississippi" | State == "Alabama" | State == "Louisiana" | State == "Texas" | State == "Oklahoma" | State == "Arkansas" | State == "Tennessee" | State == "Kentucky"~ "South",
+  
+  State == "Ohio" | State == "Michigan" | State == "Wisconsin" | State == "Minnesota" | State == "North Dakota" | State == "South Dakota" | State == "Nebraska" | State == "Kansas" | State == "Iowa" | State == "Missouri" | State == "Illinois" | State == "Indiana" ~ "Midwest",
+  
+  State == "Alaska" | State == "Hawaii" | State == "Washington" | State == "Oregon" | State == "California" | State == "Nevada" | State == "Idaho" | State == "Arizona" | State == "New Mexico" | State == "Colorado" | State == "Wyoming" | State == "Montana" | State == "Utah" ~ "West"
+))
+
+#Removes nonstates
+raw_map %<>% filter(is.na(Census_Region) == FALSE)
+## END OF DUPLICATE
+```
+
+#ACS Processing
+```{r}
+all_na <- function(x) any(!is.na(x)) #Will check if all columns are NA and remove
+
+acs %<>% select_if(all_na) %>%
+  select(-SE_A01001_001, -SE_A03001_001, -SE_A04001_001) #Redundant with A02001 -- population
+
+#Rename columns
+colnames(acs)[12:50] <- c("total_pop", "total_male", "total_female", "0to5", "5to9", "10to14", "15to17", "18to24", "25to34", "35to44", "45to54", "55to64", "65to74", "75to84", "85plus", "white", "black", "americanindian", "asian", "nativehawaiian", "someotherrace", "twoormore", "nothispanic", "nhwhite", "whblack", "nhamericanindian", "nhasian", "nhnativehawaiian", "nhsomeotherrace", "nhtwoormore", "hispanicorlatino", "hwhite", "hblack", "hamericanindian", "hasian", "hnativehawaiian", "hsomeotherrace", "htwoormore", "medianhouseholdincome")
+
+#Keep only the ones that are interesting
+acs %<>% select(Geo_FIPS, Geo_NAME, Geo_STUSAB, Geo_STATE, Geo_COUNTY, total_pop, total_male, total_female, `0to5`, `5to9`, `10to14`, `15to17`, `18to24`, `25to34`, `35to44`, `45to54`, `55to64`, `65to74`, `75to84`, `85plus`, white, black, americanindian, asian, nativehawaiian, someotherrace, twoormore, nothispanic, hispanicorlatino, medianhouseholdincome, year)
+
+#Turn the totals into proportions
+acs[,7:29] <- (acs[,7:29]/acs[,6])*100
+
+dat_tt_one_county <- left_join(dat_tt_one, rucc, by = c("FIPS")) %>%
+  left_join(acs, by = c("FIPS" = "Geo_FIPS", "Year" = "year"))
+
+dat_tt_one_county %<>% mutate(rucc_categorical = case_when(
+  RUCC_2013 <= 3 ~ "Metro",
+  RUCC_2013 >= 4 & RUCC_2013 <= 6 ~ "Suburban",
+  RUCC_2013 >=7 ~ "Rural"
+))
+
+dat_tt_one_county %<>% 
+  mutate(age_under18 = `0to5` + `5to9` + `10to14` + `15to17`,
+         age_18to65 = `18to24` + `25to34` + `35to44` + `45to54` + `55to64`,
+         age_over65 = `65to74` + `75to84` + `85plus`)
+```
+
+# Update County to Reflect Counties that May have the Same Name
+```{r}
+dat_tt_one$county_state_combo <- paste(dat_tt_one$County, dat_tt_one$State)
+
+dat_tt_one_county$county_state_combo <- paste(dat_tt_one_county$County, dat_tt_one_county$State.x)
+
+```
+
+# Full Model
+```{r}
+#Travel Time Change Over Time by State by County
+#Figure out how many colors per state
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(dat_tt_one, aes(x = Year, y = Median_Travel)) +
+  geom_jitter() +
+  geom_smooth(method= "lm", se = FALSE) +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Median Travel Time (Minutes)") +
+  ggtitle("Change in Travel Time to Obesity Medicine Specialists\n2011 - 2019") +
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=7)) +
+  scale_x_continuous(breaks = seq(2011, 2019, 2))
+ggsave("201122_MedianTravelTime.tiff", width = 6, height = 4)
+
+summary(model <- lmer(Median_Travel ~ Year + (1|county_state_combo), data = dat_tt_one))
+confint(model)
+
+#Median Travel Time vs. Prevalence
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(dat_tt_one, aes(x = Median_Travel, y = X..Obese)) +
+  geom_point() +
+  geom_smooth(method= "lm") +
+  theme_bw() +
+  xlab("Median Travel Time (Minutes)") +
+  ylab("Obesity Prevalence") +
+  ggtitle("Median Travel Time vs. Obesity Prevalence\n2011 - 2019") +
+  theme(legend.position = "none")
+ggsave("201122_TravelTime_Prevalence_All.tiff", width = 6, height = 4)
+
+summary(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = dat_tt_one))
+confint(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = dat_tt_one))*10 #For TT
+confint(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), dat_tt_one)) #For Year
+
+#Median Travel vs. Obesity Prevalence Stratified by Rurality
+urban <- filter(dat_tt_one_county, rucc_categorical == "Metro")
+suburban <- filter(dat_tt_one_county, rucc_categorical == "Suburban")
+rural <- filter(dat_tt_one_county, rucc_categorical == "Rural")
+
+test <- lmer(X..Obese ~ Median_Travel + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + hispanicorlatino + (1|county_state_combo), data = urban)
+urban$point_estimates <- predict(test, urban)
+
+test <- lmer(X..Obese ~ Median_Travel + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + hispanicorlatino + (1|county_state_combo), data = suburban)
+suburban$point_estimates <- predict(test, suburban)
+
+test <- lmer(X..Obese ~ Median_Travel + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + hispanicorlatino + (1|county_state_combo), data = rural)
+rural$point_estimates <- predict(test, rural)
+
+rurality_obesity <- rbind(urban, suburban) %>%
+  rbind(., rural) %>%
+  select(Median_Travel, point_estimates, rucc_categorical)
+
+#Median Travel vs. Change in Obesity Prevalence
+rurality_obesity$rucc_categorical <- factor(rurality_obesity$rucc_categorical, levels = c("Metro", "Suburban", "Rural"))
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(rurality_obesity, aes(x = Median_Travel, y = point_estimates)) +
+  geom_point() +
+  geom_smooth(method= "lm") +
+  theme_minimal() +
+  xlab("Median Travel Time (Minutes)") +
+  ylab("Obesity Prevalence") +
+  ggtitle("Median Travel Time vs. Obesity Prevalence by Rurality, 2011 - 2018\nAdjusted for Gender, Race, Ethnicity,and Median Household Income") + 
+  facet_wrap(~rucc_categorical, scales = "free")
+ggsave("201122_TravelTime_Prevalence_Adjusted_Rurality.tiff", width = 7.25, height = 4.51)
+
+```
+
+# Truncate at 240 minutes and re-evaluate
+```{r}
+dat_tt_one_county_trunc <- filter(dat_tt_one_county, Median_Travel <= 240) #Filter to only those below 240 minutes (4 hours)
+
+test <- lmer(X..Obese ~ Median_Travel + Year + rucc_categorical + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + hispanicorlatino + (1|county_state_combo), data = dat_tt_one_county_trunc)
+#dat_tt_one_county_trunc$point_estimates <- predict(test, dat_tt_one_county_trunc)
+
+urban_trunc <- filter(dat_tt_one_county_trunc, rucc_categorical == "Metro")
+suburban_trunc <- filter(dat_tt_one_county_trunc, rucc_categorical == "Suburban")
+rural_trunc <- filter(dat_tt_one_county_trunc, rucc_categorical == "Rural")
+
+test <- lmer(X..Obese ~ Median_Travel + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + hispanicorlatino + (1|county_state_combo), data = urban_trunc)
+urban_trunc$point_estimates <- predict(test, urban_trunc)
+
+test <- lmer(X..Obese ~ Median_Travel + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + hispanicorlatino + (1|county_state_combo), data = suburban_trunc)
+suburban_trunc$point_estimates <- predict(test, suburban_trunc)
+
+test <- lmer(X..Obese ~ Median_Travel + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + hispanicorlatino + (1|county_state_combo), data = rural_trunc)
+rural_trunc$point_estimates <- predict(test, rural_trunc, allow.new.levels = TRUE)
+
+rurality_obesity <- rbind(urban_trunc, suburban_trunc) %>%
+  rbind(., rural_trunc) %>%
+  select(Median_Travel, point_estimates, rucc_categorical)
+
+rurality_obesity$rucc_categorical <- factor(rurality_obesity$rucc_categorical, levels = c("Metro", "Suburban", "Rural"))
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(rurality_obesity, aes(x = Median_Travel, y = point_estimates)) +
+  geom_point() +
+  geom_smooth(method= "lm") +
+  theme_minimal() +
+  xlab("Median Travel Time (Minutes)") +
+  ylab("Obesity Prevalence") +
+  ggtitle("Median Travel Time vs. Obesity Prevalence by Rurality, 2011 - 2018\nAdjusted for Gender, Race, Ethnicity,and Median Household Income") +
+  facet_wrap(~rucc_categorical)
+ggsave("201122_TravelTime_Prevalence_Adjusted_Rurality_Trunc.tiff", width = 7.25, height = 4.51)
+
+```
+
+# Northeast Region Models
+```{r}
+#Travel Time Change Over Time by State by County
+#Figure out how many colors per state
+dat_tt_one %>%
+  filter(Census_Region == "Northeast") %>%
+  group_by(State) %>%
+  summarise(length(unique(county_state_combo)))
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(filter(dat_tt_one, Census_Region == "Northeast"), aes(x = Year, y = Median_Travel, color = county_state_combo)) +
+  geom_point() +
+  geom_smooth(method= "lm", se = FALSE) +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Median Travel Time (Minutes)") +
+  ggtitle("Change in Travel Time to Obesity Medicine Specialists\nNortheast Census Region, 2011 - 2019") +
+  scale_color_manual(values = c(get_palette(palette = "lancet", 8), #CT
+                              get_palette(palette = "lancet", 16), #ME
+                              get_palette(palette = "lancet", 14), #MA
+                              get_palette(palette = "lancet", 10), #NH
+                              get_palette(palette = "lancet", 21), #NJ
+                              get_palette(palette = "lancet", 62), #NY
+                              get_palette(palette = "lancet", 67), #PA
+                              get_palette(palette = "lancet", 5), #RI
+                              get_palette(palette = "lancet", 14) #VT
+                              )) +
+  facet_wrap(~State, scales = "free") + 
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=7)) +
+  scale_x_continuous(breaks = seq(2011, 2019, 2))
+ggsave("201122_MedianTravelTime_Northeast.tiff", width = 7.25, height = 4.51)
+
+summary(lmer(Median_Travel ~ Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "Northeast")))
+confint(lmer(Median_Travel ~ Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "Northeast")))
+test <- coef(lmer(Median_Travel ~ Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "Northeast")))
+
+#Median Travel Time vs. Prevalence
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(filter(dat_tt_one, Census_Region == "Northeast"), aes(x = Median_Travel, y = X..Obese)) +
+  geom_point() +
+  geom_smooth(method= "lm") +
+  theme_bw() +
+  xlab("Median Travel Time (Minutes)") +
+  ylab("Obesity Prevalence") +
+  ggtitle("Median Travel Time vs. Obesity Prevalence\nNortheast Census Region, 2011 - 2019") +
+  theme(legend.position = "none") #+
+ggsave("201122_TravelTime_Prevalence_1119_Northeast_All.tiff", width = 7.25, height = 4.51)
+
+summary(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "Northeast")))
+confint(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "Northeast")))*10 #For TT
+confint(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "Northeast"))) #For Year
+```
+
+# South Region Models
+```{r}
+#Travel Time Change Over Time by State by County
+#Figure out how many colors per state
+dat_tt_one %>%
+  filter(Census_Region == "South") %>%
+  group_by(State) %>%
+  summarise(length(unique(county_state_combo)))
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(filter(dat_tt_one, Census_Region == "South"), aes(x = Year, y = Median_Travel, color = county_state_combo)) +
+  geom_point() +
+  geom_smooth(method= "lm", se = FALSE) +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Median Travel Time (Minutes)") +
+  ggtitle("Change in Travel Time to Obesity Medicine Specialists\nSouth Census Region, 2011 - 2019") +
+  scale_color_manual(values = c(get_palette(palette = "lancet", 67), #AL
+                              get_palette(palette = "lancet", 75), #AR
+                              get_palette(palette = "lancet", 3), #DE
+                              get_palette(palette = "lancet", 67), #FL
+                              get_palette(palette = "lancet", 159), #GA
+                              get_palette(palette = "lancet", 120), #KY
+                              get_palette(palette = "lancet", 64), #LA
+                              get_palette(palette = "lancet", 24), #MD
+                              get_palette(palette = "lancet", 82), #MS
+                              get_palette(palette = "lancet", 100), #NC
+                              get_palette(palette = "lancet", 74), #OK
+                              get_palette(palette = "lancet", 46), #SC
+                              get_palette(palette = "lancet", 95), #TN
+                              get_palette(palette = "lancet", 253), #TX
+                              get_palette(palette = "lancet", 133), #VA
+                              get_palette(palette = "lancet", 55) #WV
+                    )) +
+  facet_wrap(~State, scales = "free") + 
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=7)) +
+  scale_x_continuous(breaks = seq(2011, 2019, 2))
+ggsave("201122_MedianTravelTime_South.tiff", width = 7.25, height = 4.51)
+
+summary(lmer(Median_Travel ~ Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "South")))
+confint(lmer(Median_Travel ~ Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "South")))
+
+#Median Travel Time vs. Prevalence
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(filter(dat_tt_one, Census_Region == "South"), aes(x = Median_Travel, y = X..Obese)) +
+  geom_point() +
+  geom_smooth(method= "lm") +
+  theme_bw() +
+  xlab("Median Travel Time (Minutes)") +
+  ylab("Obesity Prevalence") +
+  ggtitle("Median Travel Time vs. Obesity Prevalence\nSouth Census Region, 2011 - 2019") +
+  theme(legend.position = "none") #+
+ggsave("201122_TravelTime_Prevalence_South_All.tiff", width = 7.25, height = 4.51)
+
+summary(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "South")))
+confint(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "South")))*10 #For TT
+confint(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "South"))) #For Year
+```
+
+# Adjusted MEM for demographic covariates
+```{r}
+#Preprocess for join
+
+#Median Travel vs. Obesity Prevalence
+test <- lmer(X..Obese ~ Median_Travel + Year + RUCC_2013 + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + hispanicorlatino + (1|county_state_combo), data = filter(dat_tt_one_county, Census_Region == "South"))
+confint(test)
+south <- filter(dat_tt_one_county, Census_Region == "South")
+south$point_estimates <- predict(test, south)
+
+```
+
+# Midwest Region Models
+```{r}
+#Travel Time Change Over Time by State by County
+#Figure out how many colors per state
+dat_tt_one %>%
+  filter(Census_Region == "Midwest") %>%
+  group_by(State) %>%
+  summarise(length(unique(county_state_combo)))
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(filter(dat_tt_one, Census_Region == "Midwest"), aes(x = Year, y = Median_Travel, color = county_state_combo)) +
+  geom_point() +
+  geom_smooth(method= "lm", se = FALSE) +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Median Travel Time (Minutes)") +
+  ggtitle("Change in Travel Time to Obesity Medicine Specialists\nMidwest Census Region, 2011 - 2019") +
+  scale_color_manual(values = c(get_palette(palette = "lancet", 102), #IL
+                              get_palette(palette = "lancet", 92), #IN
+                              get_palette(palette = "lancet", 99), #IA
+                              get_palette(palette = "lancet", 96), #KS
+                              get_palette(palette = "lancet", 83), #MI
+                              get_palette(palette = "lancet", 86), #MN
+                              get_palette(palette = "lancet", 114), #MS
+                              get_palette(palette = "lancet", 73), #NE
+                              get_palette(palette = "lancet", 53), #ND
+                              get_palette(palette = "lancet", 88), #OH
+                              get_palette(palette = "lancet", 41), #SD
+                              get_palette(palette = "lancet", 72) #WI
+                    )) +
+  facet_wrap(~State, scales = "free") + 
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=7)) +
+  scale_x_continuous(breaks = seq(2011, 2019, 2))
+ggsave("201122_MedianTravelTime_Midwest.tiff", width = 7.25, height = 4.51)
+
+summary(lmer(Median_Travel ~ Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "Midwest")))
+confint(lmer(Median_Travel ~ Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "Midwest")))
+
+#Median Travel Time vs. Prevalence
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(filter(dat_tt_one, Census_Region == "Midwest"), aes(x = Median_Travel, y = X..Obese)) +
+  geom_point() +
+  geom_smooth(method= "lm") +
+  theme_bw() +
+  xlab("Median Travel Time (Minutes)") +
+  ylab("Obesity Prevalence") +
+  ggtitle("Median Travel Time vs. Obesity Prevalence\nMidwest Census Region, 2011 - 2019") +
+  theme(legend.position = "none")
+ggsave("201122_TravelTime_Prevalence_Midwest_All.tiff", width = 7.25, height = 4.51)
+
+summary(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "Midwest")))
+confint(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "Midwest")))*10 #For TT
+confint(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "Midwest"))) #For Year
+```
+
+# Adjusted MEM for demographic covariates
+```{r}
+#Preprocess for join
+
+#Median Travel vs. Obesity Prevalence
+test <- lmer(X..Obese ~ Median_Travel + Year + RUCC_2013 + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + hispanicorlatino + (1|county_state_combo), data = filter(dat_tt_one_county, Census_Region == "Midwest"))
+confint(test)
+midwest <- filter(dat_tt_one_county, Census_Region == "Midwest")
+midwest$point_estimates <- predict(test, midwest)
+
+```
+
+# West Region Models
+```{r}
+#Travel Time Change Over Time by State by County
+#Figure out how many colors per state
+dat_tt_one %>%
+  filter(Census_Region == "West") %>%
+  group_by(State) %>%
+  summarise(length(unique(county_state_combo)))
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(filter(dat_tt_one, Census_Region == "West"), aes(x = Year, y = Median_Travel, color = county_state_combo)) +
+  geom_point() +
+  geom_smooth(method= "lm", se = FALSE) +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Median Travel Time (Minutes)") +
+  ggtitle("Change in Travel Time to Obesity Medicine Specialists\nWest Census Region, 2011 - 2019") +
+  scale_color_manual(values = c(get_palette(palette = "lancet", 15), #AK
+                              get_palette(palette = "lancet", 15), #AZ
+                              get_palette(palette = "lancet", 58), #CA
+                              get_palette(palette = "lancet", 64), #CO
+                              get_palette(palette = "lancet", 1), #HI
+                              get_palette(palette = "lancet", 41), #ID
+                              get_palette(palette = "lancet", 56), #MT
+                              get_palette(palette = "lancet", 16), #NV
+                              get_palette(palette = "lancet", 33), #NM
+                              get_palette(palette = "lancet", 36), #OR
+                              get_palette(palette = "lancet", 29), #UT
+                              get_palette(palette = "lancet", 39), #WA
+                              get_palette(palette = "lancet", 23) #WY
+                    )) +
+  facet_wrap(~State, scales = "free") + 
+  theme(legend.position = "none",
+        axis.text.x = element_text(size=7)) +
+  scale_x_continuous(breaks = seq(2011, 2019, 2))
+ggsave("201122_MedianTravelTime_West.tiff", width = 7.51, height = 4.51)
+
+summary(lmer(Median_Travel ~ Year + (1|County), data = filter(dat_tt_one, Census_Region == "West")))
+confint(lmer(Median_Travel ~ Year + (1|County), data = filter(dat_tt_one, Census_Region == "West")))
+
+#Median Travel Time vs. Prevalence
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(filter(dat_tt_one, Census_Region == "West"), aes(x = Median_Travel, y = X..Obese)) +
+  geom_point() +
+  geom_smooth(method= "lm") +
+  theme_bw() +
+  xlab("Median Travel Time (Minutes)") +
+  ylab("Obesity Prevalence") +
+  ggtitle("Median Travel Time vs. Obesity Prevalence\nWest Census Region, 2011 - 2019") +
+  theme(legend.position = "none")
+ggsave("201122_TravelTime_Prevalence_West_All.tiff", width = 7.25, height = 4.51)
+
+summary(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "West")))
+confint(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "West")))*10 #For TT
+confint(lmer(X..Obese ~ Median_Travel + Year + (1|county_state_combo), data = filter(dat_tt_one, Census_Region == "West"))) #For Year
+```
+
+# Adjusted MEM for demographic covariates
+```{r}
+#Preprocess for join
+
+#Median Travel vs. Obesity Prevalence
+test <- lmer(X..Obese ~ Median_Travel + Year + RUCC_2013 + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + hispanicorlatino + (1|county_state_combo), data = filter(dat_tt_one_county, Census_Region == "West"))
+confint(test)
+west <- filter(dat_tt_one_county, Census_Region == "West")
+west$point_estimates <- predict(test, west)
+```
+
+# Gap Analysis
+```{r}
+dat_tt_one_county %>%
+  filter(Year <= 2018) %>%
+  group_by(Year) %>%
+  summarise(weighted.quantile(Median_Travel, w = total_pop)[2],
+            weighted.quantile(Median_Travel, w = total_pop)[3],
+            weighted.quantile(Median_Travel, w = total_pop)[4],
+            (weighted.quantile(Median_Travel, w = total_pop)[4] - weighted.quantile(Median_Travel, w = total_pop)[2]))
+
+dat_tt_one_county %>%
+  filter(Year <= 2018) %>%
+  group_by(Year) %>%
+  summarise(lower_outlier = (weighted.quantile(Median_Travel, w = total_pop)[2]) -  (weighted.quantile(Median_Travel, w = total_pop)[4] - weighted.quantile(Median_Travel, w = total_pop)[2])* 1.5,
+            upper_outlier = (weighted.quantile(Median_Travel, w = total_pop)[4]) +  (weighted.quantile(Median_Travel, w = total_pop)[4] - weighted.quantile(Median_Travel, w = total_pop)[2])* 1.5)
+
+outliers <- filter(dat_tt_one_county, (Year == 2011 & Median_Travel >= 150) | (Year == 2012 & Median_Travel >= 112) | (Year == 2013 & Median_Travel >= 94.1) | (Year == 2014 & Median_Travel >= 92.8) | (Year == 2015 & Median_Travel >= 78.9) | (Year == 2016 & Median_Travel >= 61.8) | (Year == 2017 & Median_Travel >= 46.5) | (Year == 2018 & Median_Travel >= 39.9))
+
+nonoutliers_weighted <- filter(dat_tt_one_county, (Year == 2011 & Median_Travel < 150) | (Year == 2012 & Median_Travel < 112) | (Year == 2013 & Median_Travel < 94.1) | (Year == 2014 & Median_Travel < 92.8) | (Year == 2015 & Median_Travel < 78.9) | (Year == 2016 & Median_Travel < 61.8) | (Year == 2017 & Median_Travel < 46.5) | (Year == 2018 & Median_Travel < 39.9))
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(dat_tt_one_county, aes(x = as.factor(Year), y = Median_Travel)) +
+  geom_boxplot() +
+  theme_bw() +
+  labs(x = "Year",
+       y = "County-Level Median Travel Time (Minutes)",
+       title = "County Level Median Travel Time by Year")
+ggsave("201122_CountyLevelObesityTT_Year_Boxplots_All.tiff", width = 6, height = 5)
+
+for (i in c(22, 24, 37, 50:59, 61:63)) {
+  print(colnames(outliers)[i])
+  print(t.test(as.data.frame(outliers[,i]), as.data.frame(nonoutliers_weighted[,i])))
+  print("**********")
+}
+
+chisq.test(cbind(table(outliers$rucc_categorical), table(nonoutliers_weighted$rucc_categorical)))
+
+```
+
+# Map of Outlier vs. Nonoutlier
+```{r}
+states_sf <- get_urbn_map(map = "states", sf = TRUE)
+counties_sf <- get_urbn_map(map = "counties", sf = TRUE)
+dat_tt_one_county$fips_merge <- as.character(dat_tt_one_county$FIPS)
+dat_tt_one_county$fips_merge <- str_pad(dat_tt_one_county$fips_merge, 5, pad = "0")
+
+map_sf <- inner_join(dat_tt_one_county, counties_sf, by = c("fips_merge" = "county_fips"))
+
+summary(map_sf$Median_Travel)
+
+map_sf %<>% mutate(
+  travel_time_categorical = case_when(
+    Median_Travel < 60 ~ "Under 1 Hour",
+    Median_Travel >= 60 & Median_Travel < 120 ~ "1 to 2 Hours",
+    Median_Travel >= 120 & Median_Travel < 180 ~ "2 to 3 Hours",
+    Median_Travel >= 180 & Median_Travel < 240 ~ "3 to 4 Hours",
+    Median_Travel >= 240 & Median_Travel <= 300 ~ "4 to 5 Hours",
+    Median_Travel > 300 ~ "Over 5 Hours"
+  )
+)
+
+map_sf$travel_time_categorical <- factor(map_sf$travel_time_categorical, levels = c("Over 5 Hours", "4 to 5 Hours", "3 to 4 Hours", "2 to 3 Hours", "1 to 2 Hours", "Under 1 Hour"))
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(map_sf, aes(geometry = geometry)) +
+  geom_sf(mapping = aes(fill = travel_time_categorical), color = NA) +
+  geom_sf(data = states_sf, fill = NA, color = "black", size = 0.25) +
+  coord_sf(datum = NA) +   
+  scale_fill_brewer(name = "Travel Bands", palette = "Spectral") + 
+  theme_bw() + 
+  ggtitle("Median County-Level Travel Time to Obesity Medicine Specialists") + 
+  facet_wrap(~Year) +
+  theme(legend.position="right", 
+        panel.border = element_blank(),
+        rect = element_rect(fill = "transparent"))
+ggsave("201122_TravelTimeMaps.tiff", width = 7.25, height = 4.51, bg = "transparent")
+
+```
+
+# Median Travel Time Weighted by Population and Rerun
+```{r}
+test <- dat_tt_all %>%
+  ungroup(.) %>%
+  group_by(STATEFP, COUNTYFP, Year) %>%
+  filter(is.na(Total_Time) == FALSE) %>%
+  mutate(weighted_median_travel = weighted.median(Total_Time, POPULATION))
+
+cor(test$Median_Travel, test$weighted_median_travel) #0.999
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(test, aes(x = Median_Travel, y = weighted_median_travel)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_bw() +
+  labs(x = "County-Level Median Travel Time",
+       y = "Weighted County-Level Median Travel Time",
+       title = "County-Level Median Travel Time vs.\nWeighted County-Level Travel Time") +
+  annotate("text", x = 500, y = 2000, label = "r = 0.999")
+ggsave("201122_TTvsWeightedTT.tiff", width = 6, height = 5)
+```
+
+# Unadjusted, Univariate Analysis of Covariates
+```{r}
+covariates <- c("total_female", "white", "black", "americanindian", "asian", "nativehawaiian", "someotherrace", "twoormore", "nothispanic", "hispanicorlatino", "medianhouseholdincome", "rucc_categorical", "age_18to65", "age_over65")
+for (cov in covariates) {
+  print(cov)
+  print(summary(model <- lmer(Median_Travel ~ get(cov) + (1|Year), data = dat_tt_one_county)))
+  print(confint(model))
+  print("**********")
+}
+
+dat_tt_one_county_long_race <- dat_tt_one_county %>%
+  ungroup() %>%
+  select(Median_Travel, white, black, americanindian, asian, nativehawaiian, someotherrace, twoormore, Year, County) %>%
+  melt(id = c("Year", "County", "Median_Travel"))
+
+dat_tt_one_county_long_race$variable <- relevel(dat_tt_one_county_long_race$variable, ref = "white")
+summary(model <- lmer(Median_Travel ~ variable*value + (1|Year), data = dat_tt_one_county_long_race))
+confint(model)
+
+summary(model <- lmer(Median_Travel ~ medianhouseholdincome + (1|Year/County), data = dat_tt_one_county))
+confint(model) * 10000
+
+```
+
+# Per Capita Diplomates
+```{r}
+## NOTE: ADULT_ONLY and MISSING_CERTIFICATION_COMPLETE_ADULT_ONLY IS FROM SPECIFIC AIM 1##
+final_diplomates %<>%
+  select(-X)
+
+address_diplomates <- address_no_hospital %>%
+  select(Name, Hospital, Year)
+
+originally_missed_address_new <- filter(originally_missed, Hospital.Affiliations == "" & Office.Address != "") %>%
+  select(Name, Office.Address, Year)
+colnames(originally_missed_address_new)[2] <- "Hospital"
+originally_missed_address_new$Year <- as.character(originally_missed_address_new$Year)
+
+originally_missed_hospitals_new <- originally_missed %>%
+  select(Name, Hospital.Affiliations, Year) %>%
+  separate_rows(Hospital.Affiliations, sep = ";") %>%
+  filter(Hospital.Affiliations != "")
+colnames(originally_missed_hospitals_new)[2] <- "Hospital"
+originally_missed_hospitals_new$Year <- as.character(originally_missed_hospitals_new$Year)
+
+#Calculates Adult Travel Time
+diplomates <- as.data.frame(rbind(as.data.frame(final_diplomates), as.data.frame(address_diplomates), as.data.frame(originally_missed_address_new), as.data.frame(originally_missed_hospitals_new))) %>%
+  filter(Name %in% adult_only$Name | Name %in% missing_certification_complete_adult_only$Name) %>%
+  group_by(Hospital, Year) %>%
+  summarise(number_of_diplomates = n()) %>%
+  ungroup() %>%
+  filter(Hospital != " ")
+
+diplomates$Year <- as.numeric(diplomates$Year)
+diplomates$Hospital <- gsub("\\s+", " ", str_trim(diplomates$Hospital))
+diplomates$Year <- ifelse(diplomates$Year <= 2011, 2011, diplomates$Year)
+raw_map$Hospital <- gsub("\\s+", " ", str_trim(raw_map$Hospital))
+
+diplomates %<>%
+  group_by(Hospital) %>%
+  mutate(cumulative_diplomates = cumsum(number_of_diplomates))
+
+diplomate_locations <- rep(unique(diplomates$Hospital), 9) %>% sort
+diplomate_years <- rep(c(2011:2019), length(diplomate_locations))
+
+diplomates_new <- as.data.frame(cbind(diplomate_locations, diplomate_years))
+colnames(diplomates_new) <- c("Hospital", "Year")
+diplomates_new$Year <- as.numeric(diplomates_new$Year)
+
+diplomates_new %<>%
+  left_join(diplomates) %>%
+  distinct(.)
+
+diplomates_new[is.na(diplomates_new)] <- 0
+
+diplomates_new %<>%
+  group_by(Hospital) %>%
+  mutate(cumulative_diplomates_recalculated = cumsum(number_of_diplomates))
+
+mapped_diplomates <- raw_map %>%
+  group_by(State, County) %>%
+  mutate(percent_obese = trunc(POPULATION * (X..Obese)/100)) %>%
+  ungroup() %>%
+  group_by(Year, Hospital) %>%
+  mutate(mapped_tracts = n(),
+         mapped_population = sum(percent_obese)) %>%
+  left_join(., diplomates, by = c("Hospital", "Year")) %>%
+  #left_join(., diplomates_new, by = c("Hospital", "Year")) %>%
+  arrange(Hospital, Year) %>%
+  ungroup() %>%
+  group_by(Hospital) %>%
+  na.locf(.) %>%
+  mutate(diplomates_per_capita = cumulative_diplomates/mapped_population * 100000)
+  #mutate(diplomates_per_capita_recalculated = cumulative_diplomates_recalculated/mapped_population * 100000)
+
+mapped_diplomates %>%
+  group_by(Year) %>%
+  summarise(mean(diplomates_per_capita),
+            median(diplomates_per_capita))
+
+mapped_diplomates_recalculated <- raw_map %>%
+  group_by(State, County) %>%
+  mutate(percent_obese = trunc(POPULATION * (X..Obese)/100)) %>%
+  ungroup() %>%
+  group_by(Year, Hospital) %>%
+  mutate(mapped_tracts = n(),
+         mapped_population = sum(percent_obese)) %>%
+  #left_join(., diplomates, by = c("Hospital", "Year")) %>%
+  left_join(., diplomates_new, by = c("Hospital", "Year")) %>%
+  arrange(Hospital, Year) %>%
+  ungroup() %>%
+  group_by(Hospital) %>%
+  na.locf(.) %>%
+  #mutate(diplomates_per_capita = cumulative_diplomates/mapped_population * 100000)
+  mutate(diplomates_per_capita_recalculated = cumulative_diplomates_recalculated/mapped_population * 100000)
+
+mapped_diplomates_recalculated %>%
+  group_by(Year) %>%
+  summarise(mean(diplomates_per_capita_recalculated),
+            median(diplomates_per_capita_recalculated))
+
+test <- as.data.frame(cbind(mapped_diplomates$diplomates_per_capita,
+                            mapped_diplomates_recalculated$diplomates_per_capita_recalculated))
+
+which(test$V1 != test$V2) #Proves that I can go with the initial mapping, but I should probably use recalculated values for the figures
+ 
+##test$POPULATION*(test$X..Obese/100)##
+##sum(test$POPULATION*(test$X..Obese/100))/sum(test$POPULATION)##
+
+mapped_diplomates_unique <- mapped_diplomates %>%
+  distinct(Hospital, Year, .keep_all = TRUE) %>%
+  select(Census_Region, Hospital, Year, State, mapped_tracts, mapped_population, number_of_diplomates, cumulative_diplomates, diplomates_per_capita, Total_Time)
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+mapped_diplomates_unique %>%
+  filter(Year == 2011 | Year == 2019) %>%
+  ggplot(aes(x = as.factor(Year), y = log10(diplomates_per_capita), color = Census_Region)) +
+  geom_boxplot() +
+  theme_classic() +
+  facet_wrap(~Census_Region) +
+  labs(x = "Year",
+       y = "Log(Count)",
+       title = "Log Diplomates Per 100,000 Mapped Patients with Obesity by Census Region") +
+  scale_color_jama()
+ggsave("210406_DiplomatesPerCapita_Boxplot.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+mapped_diplomates_unique %>% 
+  filter(Year == 2011 | Year == 2019) %>%
+  group_by(Year, Census_Region) %>% 
+  summarise(median_dips = median(diplomates_per_capita, na.rm = TRUE), 
+            iqr_dips = IQR(diplomates_per_capita, na.rm = TRUE))
+
+mapped_diplomates_unique %>%
+  filter(Year == 2011 | Year == 2019) %>%
+  filter(Hospital != "Renown Regional Medical Center Reno Nevada") %>%
+  ggplot(aes(x = as.factor(Year), y = diplomates_per_capita, color = Census_Region)) +
+  geom_boxplot() +
+  theme_classic() +
+  facet_wrap(~Census_Region) +
+  labs(x = "Diplomates Per 100,000 Persons",
+       y = "Count",
+       title = "Diplomates Per 100,000 Persons with Obesity by Census Region\nNo Influential Point") +
+  scale_color_jama()
+ggsave("201122_DiplomatesPerCapita_Boxplot_NoReno.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+summary(filter(mapped_diplomates_unique, Year == 2011)$diplomates_per_capita)
+#IQR(filter(mapped_diplomates_unique, Year == 2011)$diplomates_per_capita)
+summary(filter(mapped_diplomates_unique, Year == 2019)$diplomates_per_capita)
+IQR(filter(mapped_diplomates_unique, Year == 2019)$diplomates_per_capita)
+
+summary(filter(mapped_diplomates_unique, Census_Region == "Northeast")$diplomates_per_capita)
+summary(filter(mapped_diplomates_unique, Census_Region == "Midwest")$diplomates_per_capita)
+summary(filter(mapped_diplomates_unique, Census_Region == "South")$diplomates_per_capita)
+summary(filter(mapped_diplomates_unique, Census_Region == "West")$diplomates_per_capita)
+
+mapped_diplomates_unique$serviceable_population_week <- mapped_diplomates_unique$cumulative_diplomates * 100
+length(which(mapped_diplomates_unique$serviceable_population_week >= mapped_diplomates_unique$mapped_population))
+mapped_diplomates_unique$weeks_for_everyone <- mapped_diplomates_unique$mapped_population/mapped_diplomates_unique$serviceable_population_week
+
+mapped_diplomates_unique$serviceable_population_years<- mapped_diplomates_unique$cumulative_diplomates * (240*20)
+length(which(mapped_diplomates_unique$serviceable_population_years >= mapped_diplomates_unique$mapped_population))
+mapped_diplomates_unique$years_for_everyone <- mapped_diplomates_unique$mapped_population/mapped_diplomates_unique$serviceable_population_years
+
+mapped_diplomates_unique %>%
+  group_by(Census_Region, Year) %>%
+  summarise(median_years = median(years_for_everyone, na.rm = TRUE),
+            IQR_years = IQR(years_for_everyone, na.rm = TRUE))
+
+summary(filter(mapped_diplomates_unique, Census_Region == "Northeast")$years_for_everyone)
+summary(filter(mapped_diplomates_unique, Census_Region == "Midwest")$years_for_everyone)
+summary(filter(mapped_diplomates_unique, Census_Region == "South")$years_for_everyone)
+summary(filter(mapped_diplomates_unique, Census_Region == "West")$years_for_everyone)
+
+mapped_diplomates_unique %>%
+  filter(Year == 2011 | Year == 2019) %>%
+  ggplot(aes(x = as.factor(Year), y = years_for_everyone, color = Census_Region)) +
+  geom_boxplot() + 
+  theme_classic() +
+  facet_wrap(~Census_Region) +
+  labs(x = "Year",
+       y = "Years",
+       title = "Estimated Years to Serve Mapped Population with Obesity\n2011 vs. 2019") +
+  scale_color_jama() +
+  stat_compare_means(comparisons = list(c("2011", "2019")),
+                     label = "p.signif",
+                     label.y = 240,
+                     method = "wilcox.test")
+ggsave("201122_DiplomatesPerWeek_Year.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+summary(filter(mapped_diplomates_unique, Year == 2011)$years_for_everyone)
+IQR(filter(mapped_diplomates_unique, Year == 2011)$years_for_everyone)
+
+summary(filter(mapped_diplomates_unique, Year == 2019)$years_for_everyone)
+IQR(filter(mapped_diplomates_unique, Year == 2019)$years_for_everyone)
+
+wilcox.test(filter(mapped_diplomates_unique, Year == 2011 & Census_Region == "Midwest")$years_for_everyone, filter(mapped_diplomates_unique, Year == 2019 & Census_Region == "Midwest")$years_for_everyone)
+wilcox.test(filter(mapped_diplomates_unique, Year == 2011 & Census_Region == "Northeast")$years_for_everyone, filter(mapped_diplomates_unique, Year == 2019 & Census_Region == "Northeast")$years_for_everyone)
+wilcox.test(filter(mapped_diplomates_unique, Year == 2011 & Census_Region == "South")$years_for_everyone, filter(mapped_diplomates_unique, Year == 2019 & Census_Region == "South")$years_for_everyone)
+wilcox.test(filter(mapped_diplomates_unique, Year == 2011 & Census_Region == "West")$years_for_everyone, filter(mapped_diplomates_unique, Year == 2019 & Census_Region == "West")$years_for_everyone)
+
+summary(lmer(years_for_everyone ~ Year + (1|Hospital), data = filter(mapped_diplomates_unique, Census_Region == "Northeast")))
+summary(lmer(years_for_everyone ~ Year + (1|Hospital), data = filter(mapped_diplomates_unique, Census_Region == "Midwest")))
+summary(lmer(years_for_everyone ~ Year + (1|Hospital), data = filter(mapped_diplomates_unique, Census_Region == "South")))
+summary(lmer(years_for_everyone ~ Year + (1|Hospital), data = filter(mapped_diplomates_unique, Census_Region == "West")))
+
+median(filter(mapped_diplomates_unique, Census_Region == "Northeast" & Year == 2019)$years_for_everyone)
+median(filter(mapped_diplomates_unique, Census_Region == "Midwest" & Year == 2019)$years_for_everyone)
+median(filter(mapped_diplomates_unique, Census_Region == "South" & Year == 2019)$years_for_everyone)
+median(filter(mapped_diplomates_unique, Census_Region == "West" & Year == 2019)$years_for_everyone)
+
+```
+
+# Bin Travel Times and Look at Prevalence
+```{r}
+dat_tt_one_county %<>%
+  mutate(median_travel_binned = case_when(
+    Median_Travel < 60 ~ "Under 1 Hour",
+    Median_Travel >= 60 & Median_Travel < 120 ~ "1 to 2 Hours",
+    Median_Travel >= 120 & Median_Travel < 180 ~ "2 to 3 Hours",
+    Median_Travel >= 180 & Median_Travel < 240 ~ "3 to 4 Hours",
+    Median_Travel >= 240 & Median_Travel <= 300 ~ "4 to 5 Hours",
+    Median_Travel > 300 ~ "Over 5 Hours"
+  ))
+
+dat_tt_one_county$median_travel_binned <- factor(dat_tt_one_county$median_travel_binned, levels = c("Under 1 Hour", "1 to 2 Hours", "2 to 3 Hours", "3 to 4 Hours", "4 to 5 Hours", "Over 5 Hours"))
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(dat_tt_one_county, aes(x = median_travel_binned, y = X..Obese)) +
+  geom_boxplot() +
+  facet_wrap(~rucc_categorical) +
+  theme_bw() +
+  labs(x = "Binned County-Level Median Travel Time",
+       y = "Obesity Prevalence",
+       title = "Variations in Obesity Prevalence by Travel Time") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  stat_compare_means(label = "p.signif", 
+                     method = "t.test", 
+                     ref.group = 1)
+ggsave("201122_BinnedTravelTimes.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(dat_tt_one_county, aes(x = median_travel_binned, y = X..Obese)) +
+  geom_boxplot() +
+  theme_bw() +
+  labs(x = "Binned County-Level Median Travel Time",
+       y = "Obesity Prevalence",
+       title = "Variations in Obesity Prevalence by Travel Time") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave("201122_BinnedTravelTimes_NoStrat.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+summary(aov(X..Obese ~ median_travel_binned, data = dat_tt_one_county))
+TukeyHSD(aov(X..Obese ~ median_travel_binned, data = dat_tt_one_county))
+summary(aov(X..Obese ~ median_travel_binned*rucc_categorical, data = dat_tt_one_county))
+TukeyHSD(aov(X..Obese ~ median_travel_binned*rucc_categorical, data = dat_tt_one_county))
+```
+
+# Travel Time vs. Obese Population
+```{r}
+dat_tt_one_county %<>%
+  mutate(population_obese = trunc(total_pop * X..Obese/100)) %>%
+  ungroup() %>%
+  group_by(Year, Census_Region, median_travel_binned) %>%
+  mutate(population_obese_census = sum(population_obese)) %>%
+  ungroup() %>%
+  group_by(Year, median_travel_binned) %>%
+  mutate(population_obese_totla = sum(population_obese))
+
+dat_tt_one_county %>%
+  group_by(Year, median_travel_binned) %>%
+  summarise(population_obese_travel_band = sum(population_obese)) %>%
+  ungroup() %>%
+  group_by(Year) %>%
+  mutate(prop_band = population_obese_travel_band/sum(population_obese_travel_band)*100)
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(dat_tt_one_county, aes(x = median_travel_binned, y = population_obese_totla)) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  facet_wrap(~Year) +
+  theme_bw() +
+  labs(x = "Travel Time",
+       y = "People",
+       title = "Travel Time to Obesity Medicine Diplomates in Patients with Obesity") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave("201122_BinnedTravelTimes_Population_Year.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+dat_tt_one_county %>%
+  filter(Year == 2011 | Year == 2019) %>%
+  ggplot(aes(x = median_travel_binned, y = population_obese_census, fill = Census_Region)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") + 
+  facet_wrap(~Year) +
+  theme_classic() +
+  labs(x = "Travel Time",
+       y = "People",
+       title = "Distribution of Individuals with Obesity by Travel Bands",
+       fill = "Census Region") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_jama() +
+  scale_y_continuous(labels = comma)
+ggsave("201122_BinnedTravelTimes_Population_Year_Census.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+```
+
+# Diplomates Per Capita Population-Adjustment
+```{r}
+### THREE HOURS ### -- NOTE This is using Tract level data, the figures without 2018 is using county-level data
+
+mapped_diplomates_three_hours <- raw_map %>%
+  filter(Total_Time <= 180) %>%
+  group_by(State, County) %>%
+  mutate(percent_obese = trunc(POPULATION * (X..Obese)/100)) %>%
+  ungroup() %>%
+  group_by(Year, Hospital) %>%
+  mutate(mapped_tracts = n(),
+         mapped_population = sum(percent_obese),
+         Year = as.character(Year)) %>%
+  left_join(., diplomates, by = c("Hospital", "Year")) %>%
+  arrange(Hospital, Year) %>%
+  ungroup() %>%
+  group_by(Hospital) %>%
+  na.locf(.) %>%
+  mutate(diplomates_per_capita = cumulative_diplomates/mapped_population * 100000)
+  
+mapped_diplomates_three_hours_unique <- mapped_diplomates_three_hours %>%
+  distinct(Hospital, Year, .keep_all = TRUE)
+
+mapped_diplomates_three_hours_unique$serviceable_population_week <- mapped_diplomates_three_hours_unique$cumulative_diplomates * 100
+mapped_diplomates_three_hours_unique$weeks_for_everyone <- mapped_diplomates_three_hours_unique$mapped_population/mapped_diplomates_three_hours_unique$serviceable_population_week
+
+mapped_diplomates_three_hours_unique$serviceable_population_month <- mapped_diplomates_three_hours_unique$cumulative_diplomates * (20*5*4)
+mapped_diplomates_three_hours_unique$months_for_everyone <- mapped_diplomates_three_hours_unique$mapped_population/mapped_diplomates_three_hours_unique$serviceable_population_month
+
+mapped_diplomates_three_hours_unique$serviceable_population_year <- mapped_diplomates_three_hours_unique$cumulative_diplomates * (20*240)
+mapped_diplomates_three_hours_unique$years_for_everyone <- mapped_diplomates_three_hours_unique$mapped_population/mapped_diplomates_three_hours_unique$serviceable_population_year
+
+summary(filter(mapped_diplomates_three_hours_unique, Year == 2011)$diplomates_per_capita)
+summary(filter(mapped_diplomates_three_hours_unique, Year == 2011)$years_for_everyone)
+IQR(filter(mapped_diplomates_three_hours_unique, Year == 2011)$years_for_everyone)
+
+mapped_diplomates_three_hours_unique %>%
+  filter(Year == 2011 | Year == 2019) %>%
+  ggplot(aes(x = as.factor(Year), y = years_for_everyone, color = Census_Region)) +
+  geom_boxplot() +
+  theme_bw() +
+  facet_wrap(~Census_Region) +
+  labs(x = "Year",
+       y = "Years",
+       title = "Annual Change in the Number of Years to Serve the Mapped Population\nTravel Time Under 3 Hours") +
+  scale_color_jama()
+ggsave("201122_DiplomatesPerYear_Year_3Hours.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggplot(mapped_diplomates_three_hours_unique, aes(x = Year, y = years_for_everyone)) +
+  geom_point() +
+  geom_smooth(method = "lm") + 
+  theme_bw() +
+  facet_wrap(~Census_Region) +
+  labs(x = "Year",
+       y = "Years",
+       title = "Annual Change in the Number of Years to Serve the Mapped Population\nTravel Time Under 3 Hours") +
+  scale_x_continuous(breaks = c(2011, 2013, 2015, 2017, 2019))
+ggsave("201122_DiplomatesPerWeek_Year_3Hours.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+raw_map %>%
+    ungroup() %>%
+    group_by(Census_Region, Year) %>% 
+    summarise(gap_population = sum(POPULATION, na.rm = TRUE))
+
+mapped_diplomates_over_three <- raw_map %>%
+  ungroup() %>%
+  filter(Total_Time > 180) %>%
+  group_by(Census_Region, Year) %>% 
+  summarise(gap_population = sum(POPULATION, na.rm = TRUE)) %>%
+  mutate(gap_population_percent = case_when(
+    Census_Region == "Midwest" ~ gap_population/63271054 * 100,
+    Census_Region == "Northeast" ~ gap_population/53518424 * 100,
+    Census_Region == "South" ~ gap_population/106203135 * 100,
+    Census_Region == "West" ~ gap_population/65390003 * 100))
+
+ggplot(data = mapped_diplomates_over_three, aes(x = Year, y = gap_population)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Census_Region) +
+  theme_bw() +
+  scale_x_continuous(breaks = c(2011, 2013, 2015, 2017, 2019)) +
+  labs(x = "Year",
+       y = "People",
+       title = "Population with Obesity Three Hours from a Specialist")
+ggsave("201122_Gap_Population_ThreeHours.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+ggplot(data = mapped_diplomates_over_three, aes(x = Year, y = gap_population_percent)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Census_Region) +
+  theme_bw() +
+  scale_x_continuous(breaks = c(2011, 2013, 2015, 2017, 2019)) +
+  labs(x = "Year",
+       y = "Percent",
+       title = "Percent of Population with Obesity Three Hours from a Specialist")
+ggsave("201122_Gap_Population_ThreeHours_Percent.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+```
+
+## Rerun Adjusted MEM Models by Census Region with Categorical RUCC and age variables
+```{r}
+options(scipen = 999)
+summary(model <- lmer(Median_Travel ~ X..Obese + Year + (1|county_state_combo), data = dat_tt_one_county))
+confint(model)
+
+dat_tt_one_county$point_estimates_jama <- NA
+
+summary(model <- lmer(Median_Travel ~ X..Obese + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + rucc_categorical + age_over65 + (1|county_state_combo), data = dat_tt_one_county))
+confint(model)
+dat_tt_one_county$point_estimates_jama <- predict(model, dat_tt_one_county)
+  
+summary(lmer(Median_Travel ~ X..Obese + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + rucc_categorical + age_over65 + (1|county_state_combo), data = filter(dat_tt_one_county, Census_Region == "Northeast")))
+confint(lmer(Median_Travel ~ X..Obese + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + rucc_categorical + age_over65 + (1|county_state_combo), data = filter(dat_tt_one_county, Census_Region == "Northeast")))
+
+summary(lmer(Median_Travel ~ X..Obese + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + rucc_categorical + age_over65 + (1|county_state_combo), data = filter(dat_tt_one_county, Census_Region == "South")))
+confint(lmer(Median_Travel ~ X..Obese + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + rucc_categorical + age_over65 + (1|county_state_combo), data = filter(dat_tt_one_county, Census_Region == "South")))
+
+summary(lmer(Median_Travel ~ X..Obese + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + rucc_categorical + age_over65 + (1|county_state_combo), data = filter(dat_tt_one_county, Census_Region == "Midwest")))
+confint(lmer(Median_Travel ~ X..Obese + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + rucc_categorical + age_over65 + (1|county_state_combo), data = filter(dat_tt_one_county, Census_Region == "Midwest")))
+
+summary(lmer(Median_Travel ~ X..Obese + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + rucc_categorical + age_over65 + (1|county_state_combo), data = filter(dat_tt_one_county, Census_Region == "West")))
+confint(lmer(Median_Travel ~ X..Obese + Year + total_female + black + americanindian + asian + nativehawaiian + someotherrace + twoormore +  medianhouseholdincome + rucc_categorical + age_over65 + (1|county_state_combo), data = filter(dat_tt_one_county, Census_Region == "West")))
+
+dat_tt_one_county %>%
+  filter(State.x != "Alaska" & State.x != "Hawaii") %>%
+  filter(Year == 2011 | Year == 2018) %>%
+ggplot(aes(x = X..Obese, y = point_estimates_jama, color = Census_Region)) +
+  geom_point() + 
+  geom_smooth(method = "lm", alpha = 0.75) + 
+  facet_wrap(~Year) + 
+  scale_color_jama() + 
+  theme_classic() +
+  labs(x = "Obesity Prevalence",
+       y = "Travel Time (Minutes)",
+       color = "Census Region",
+       title = "County-Level Obesity Prevalence vs. Travel Time to an Obesity Medicine Diplomate")
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("210126_TravelTime_Prevalence_Option2.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+ggplot(filter(dat_tt_one_county, Year != 2019), aes(x = X..Obese, y = point_estimates_jama, color = Census_Region)) +
+  geom_point() + 
+  geom_smooth(method = "lm", alpha = 0.75) + 
+  facet_wrap(~Year) + 
+  scale_color_jama() + 
+  theme_classic() +
+  labs(x = "Obesity Prevalece",
+       y = "Travel Time (Minutes)",
+       color = "Census Region",
+       title = "County-Level Obesity Prevalence vs. Travel Time to an Obesity Medicine Diplomate")
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("210126_TravelTime_Prevalence_AKHI.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+```
+
+# Determine what fraction of counties switch by metro region
+```{r}
+dat_tt_one_county %<>%
+  mutate(median_travel_binned_numeric = as.numeric(median_travel_binned))
+
+dat_tt_one_county$median_travel_binned_change <- 0
+
+for (i in 1:nrow(dat_tt_one_county)) {
+  if (dat_tt_one_county[i,"Year"] != 2011) {
+    dat_tt_one_county[i, "median_travel_binned_change"] <-  dat_tt_one_county[i, "median_travel_binned_numeric"] - dat_tt_one_county[i-1, "median_travel_binned_numeric"] #2019 - 2018
+  }
+  if (i %% 100 == 1) {
+    print(i)
+  }
+}
+
+dat_tt_one_county %>%
+  group_by(Year, rucc_categorical) %>%
+  tally(.) #Metro = 1157, Suburban = 896, Rural = 1006
+
+dat_tt_one_county %>%
+  filter(Year != 2011) %>%
+  group_by(Year, rucc_categorical, median_travel_binned_change) %>%
+  summarise(number_moved = n()) %>%
+  mutate(percent_moved = case_when(
+    rucc_categorical == "Metro" ~ number_moved/1157 * 100,
+    rucc_categorical == "Suburban" ~ number_moved/896 * 100,
+    rucc_categorical == "Rural" ~ number_moved/1006 * 100,
+  )) %>%
+  ggplot(aes(x = as.factor(median_travel_binned_change), y = percent_moved, fill = rucc_categorical)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~Year) +
+  theme_classic() +
+  scale_fill_npg() +
+  labs(x = "Number of Classes Moved",
+       y = "Percent (%)",
+       title = "Annual Movement within Travel Bands by Rurality",
+       fill = "RUCC Category")
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("201122_ClassMovement.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+dat_tt_one_county %>%
+  filter(Year != 2011 & median_travel_binned_change != 0) %>%
+  group_by(Year, rucc_categorical, median_travel_binned_change) %>%
+  summarise(number_moved = n()) %>%
+  mutate(percent_moved = case_when(
+    rucc_categorical == "Metro" ~ number_moved/1157 * 100,
+    rucc_categorical == "Suburban" ~ number_moved/896 * 100,
+    rucc_categorical == "Rural" ~ number_moved/1006 * 100,
+  )) %>%
+  ggplot(aes(x = as.factor(median_travel_binned_change), y = percent_moved, fill = rucc_categorical)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~Year) +
+  theme_classic() +
+  scale_fill_npg() +
+  labs(x = "Number of Classes Moved",
+       y = "Percent (%)",
+       title = "Annual Movement within Travel Bands by Rurality\nNo Non-movement",
+       fill = "RUCC Category")
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("201122_ClassMovement_Zoom.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+```
+
+# Calculate Movement Based on Patterns
+```{r}
+# Model 1: Ricketts & Randolph (2008). 25% movement, weight more for Northeast and Midwest
+
+#Northeast: 10.0365396479% move
+#South: 6.72216382078% move
+#Midwest: 10.184339959% move
+#West: 7.909663464% move 
+
+# Create probabilities
+probabilities <- c(10.0365396479, 6.72216382078, 10.184339959, 7.909663464)/sum(c(10.0365396479, 6.72216382078, 10.184339959, 7.909663464))
+
+# Design weightings
+mapped_diplomates_unique %<>%
+  mutate(probabilities = case_when(
+    Census_Region == "Northeast" ~ 0.2879702,
+    Census_Region == "South" ~ 0.1928735,
+    Census_Region == "Midwest" ~ 0.2922109,
+    Census_Region == "West" ~ 0.2269455
+  ))
+
+# Add index
+mapped_diplomates_unique$index <- seq.int(nrow(mapped_diplomates_unique))
+
+# Randomly sample based on probability distribution defined above
+set.seed(110295)
+mapped_diplomates_unique_sample <- mapped_diplomates_unique[sample.int(nrow(mapped_diplomates_unique), 0.25*nrow(mapped_diplomates_unique), replace = FALSE, prob = mapped_diplomates_unique$probabilities),]
+
+# Recalculate cumulative diplomates based on movement 
+mapped_diplomates_unique$number_of_diplomates_ricketts_randolph <- ifelse(mapped_diplomates_unique$index %in% mapped_diplomates_unique_sample$index, mapped_diplomates_unique$cumulative_diplomates - 1, mapped_diplomates_unique$cumulative_diplomates)
+
+# Recalculate DPC and time to serve 
+
+### How to accommodate for places that drop to 0?###
+mapped_diplomates_unique %<>%
+  mutate(diplomates_per_capita_ricketts_randolph = number_of_diplomates_ricketts_randolph/mapped_population * 100000,
+         serviceable_population_week_ricketts_randolph = number_of_diplomates_ricketts_randolph * 100,
+         weeks_for_everyone_ricketts_randolph = mapped_population/serviceable_population_week_ricketts_randolph,
+         serviceable_population_year_ricketts_randolph = number_of_diplomates_ricketts_randolph * (20*240),
+         years_for_everyone_ricketts_randolph = mapped_population/serviceable_population_year_ricketts_randolph)
+
+t.test(mapped_diplomates_unique_noinf$diplomates_per_capita, mapped_diplomates_unique_noinf$number_of_diplomates_ricketts_randolph, paired = TRUE) #p < 0.01
+
+# Model 2: Holmes and Fraher: 20-28% move over 4 year period (20.2% family, 22.9% internists, took average so 21.55%)
+
+# Randomly sample based on probability distribution defined above
+mapped_diplomates_unique_2011_2014 <- mapped_diplomates_unique %>%
+  filter(Year <= 2014)
+mapped_diplomates_unique_2015_2019 <- mapped_diplomates_unique %>%
+  filter(Year > 2014)
+
+set.seed(110295)
+mapped_diplomates_unique_sample_2011_2014 <- mapped_diplomates_unique_2011_2014[sample.int(nrow(mapped_diplomates_unique_2011_2014), 0.2155*nrow(mapped_diplomates_unique_2011_2014), replace = FALSE),]
+
+mapped_diplomates_unique_sample_2015_2019 <- mapped_diplomates_unique_2015_2019[sample.int(nrow(mapped_diplomates_unique_2015_2019), 0.2155*nrow(mapped_diplomates_unique_2015_2019), replace = FALSE),]
+
+# Recalculate cumulative diplomates based on movement 
+mapped_diplomates_unique$number_of_diplomates_holmes_fraher <- ifelse(mapped_diplomates_unique$index %in% mapped_diplomates_unique_sample_2011_2014$index | mapped_diplomates_unique$index %in% mapped_diplomates_unique_sample_2015_2019$index, mapped_diplomates_unique$cumulative_diplomates - 1, mapped_diplomates_unique$cumulative_diplomates)
+
+# Recalculate DPC and time to serve 
+
+### How to accommodate for places that drop to 0?###
+mapped_diplomates_unique %<>%
+  mutate(diplomates_per_capita_holmes_fraher = number_of_diplomates_holmes_fraher/mapped_population * 100000,
+         serviceable_population_week_holmes_fraher = number_of_diplomates_holmes_fraher * 100,
+         weeks_for_everyone_holmes_fraher = mapped_population/serviceable_population_week_holmes_fraher,
+         serviceable_population_year_holmes_fraher = number_of_diplomates_holmes_fraher * (20*240),
+         years_for_everyone_holmes_fraher = mapped_population/serviceable_population_year_holmes_fraher)
+
+t.test(mapped_diplomates_unique_noinf$diplomates_per_capita, mapped_diplomates_unique_noinf$diplomates_per_capita_holmes_fraher, paired = TRUE) #p < 0.01
+
+
+# Model 3: Ricketts (2019): 19.8% of physicians moved, with greater proportions in certain states than others
+## -1817 to -235 (-1026): MA, CT, NY, NJ, PA, MD, OH, MI, IL
+## -213 to -69 (-141): WV, IN, MO, KS, AR, LA, MS
+## -61 to -22 (-41.5): VT, ND, NE, IA, KY, AL, DE, HI, RI
+## All others experienced net gain
+
+# Create probabilities
+probabilities <- c(1026, 141, 41.5, 1)/sum(c(1026, 141, 41.5, 1))
+max_prob <- c("Massachusetts", "Connecticut", "New York", "New Jersey", "Pennsylvania", "Maryland", "Ohio", "Michigan", "Illinois")
+mid_prob <- c("West Virginia", "Indiana", "Missouri", "Kansas", "Arkansas", "Louisiana", "Mississippi")
+min_prob <- c("Vermont", "North Dakota", "Nebraska", "Iowa", "Kentucky", "Alabama", "Delaware", "Hawaii", "Rhode Island")
+# Design weightings
+mapped_diplomates_unique %<>%
+  mutate(probabilities_ricketts = case_when(
+    State %in% max_prob ~ 0.8482844150,
+    State %in% mid_prob ~ 0.1165770980,
+    State %in% min_prob ~ 0.0343116990,
+    TRUE ~ 0.0008267879))
+
+# Randomly sample based on probability distribution defined above
+mapped_diplomates_unique_2011_2015 <- mapped_diplomates_unique %>%
+  filter(Year <= 2015)
+mapped_diplomates_unique_2016_2019 <- mapped_diplomates_unique %>%
+  filter(Year > 2015)
+
+set.seed(110295)
+mapped_diplomates_unique_sample_2011_2015 <- mapped_diplomates_unique_2011_2015[sample.int(nrow(mapped_diplomates_unique_2011_2015), 0.198*nrow(mapped_diplomates_unique_2011_2015), replace = FALSE, prob = mapped_diplomates_unique_2011_2015$probabilities_ricketts),]
+
+mapped_diplomates_unique_sample_2016_2019 <- mapped_diplomates_unique_2016_2019[sample.int(nrow(mapped_diplomates_unique_2016_2019), 0.198*nrow(mapped_diplomates_unique_2016_2019), replace = FALSE, prob = mapped_diplomates_unique_2016_2019$probabilities_ricketts),]
+
+# Recalculate cumulative diplomates based on movement 
+mapped_diplomates_unique$number_of_diplomates_ricketts <- ifelse(mapped_diplomates_unique$index %in% mapped_diplomates_unique_sample_2011_2015$index | mapped_diplomates_unique$index %in% mapped_diplomates_unique_sample_2016_2019$index, mapped_diplomates_unique$cumulative_diplomates - 1, mapped_diplomates_unique$cumulative_diplomates)
+
+# Recalculate DPC and time to serve 
+
+### How to accommodate for places that drop to 0?###
+mapped_diplomates_unique %<>%
+  mutate(diplomates_per_capita_ricketts = number_of_diplomates_ricketts/mapped_population * 100000,
+         serviceable_population_week_ricketts = number_of_diplomates_ricketts * 100,
+         weeks_for_everyone_ricketts = mapped_population/serviceable_population_week_ricketts,
+         serviceable_population_year_ricketts = number_of_diplomates_ricketts * (20*240),
+         years_for_everyone_ricketts = mapped_population/serviceable_population_year_ricketts)
+
+mapped_diplomates_unique_noinf <- mapped_diplomates_unique %>%
+  filter(diplomates_per_capita_ricketts_randolph != 0 & diplomates_per_capita_holmes_fraher != 0 & diplomates_per_capita_ricketts != 0)
+
+t.test(mapped_diplomates_unique_noinf$diplomates_per_capita, mapped_diplomates_unique_noinf$diplomates_per_capita_ricketts, paired = TRUE) #p < 0.01
+
+
+
+mapped_diplomates_unique_long <- mapped_diplomates_unique %>%
+  select(diplomates_per_capita, diplomates_per_capita_ricketts_randolph, diplomates_per_capita_holmes_fraher, diplomates_per_capita_ricketts) %>%
+  melt(.) 
+
+mapped_diplomates_unique_long %<>%
+  mutate(variable_names = case_when(
+    variable == "diplomates_per_capita" ~ "No Movement",
+    variable == "diplomates_per_capita_ricketts_randolph" ~ "Ricketts & Randolph (2008)",
+    variable == "diplomates_per_capita_holmes_fraher" ~ "Holmes & Fraher (2017)",
+    variable == "diplomates_per_capita_ricketts" ~ "Ricketts (2019)"
+  ))
+
+mapped_diplomates_unique_long$variable_names <- factor(mapped_diplomates_unique_long$variable_names, levels = c("No Movement", "Ricketts & Randolph (2008)", "Holmes & Fraher (2017)", "Ricketts (2019)"))
+
+mapped_diplomates_unique_long %>%
+  ggplot(aes(x = variable_names, y = log10(value), fill = variable_names)) +
+  geom_boxplot(color = "black") +
+  theme_classic() +
+  scale_fill_npg() +
+  theme(legend.position = "none") +
+  labs(x = "Migration Model",
+       y = "Log Diplomates per Capita",
+       title = "Variations in Log Diplomates per Capita by Migration Pattern")
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("201123_VariationsbyMigration.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+mapped_diplomates_unique_long %>%
+  group_by(variable_names) %>%
+  summarise(median(value),
+            IQR(value))
+
+wilcox.test(mapped_diplomates_unique$diplomates_per_capita, mapped_diplomates_unique$diplomates_per_capita_ricketts_randolph)
+```
+
+# Amount of Facilities that can meet burden of care
+```{r}
+## 2000 NHLBI Recommendation: first follow-up in 2-4 weeks
+## 2008 CMS Reimbursement: 100 per week 
+## 2011 NEJM: 2400 patients per 6 months
+## 2013 AhA/ACC/TOS: 133 patients per month
+
+mapped_diplomates_unique %<>%
+  mutate(`NHLBI (2000)` = case_when(
+    mapped_population == serviceable_population_week * 4 ~ "Met",
+    mapped_population < serviceable_population_week * 4 ~ "Above",
+    mapped_population >serviceable_population_week * 4 ~ "Below"),
+    `DPP (2002)` = case_when(
+      mapped_population*16 == serviceable_population_week * 24 ~ "Met",
+      mapped_population*16 < serviceable_population_week * 24 ~ "Above",
+      mapped_population*16 > serviceable_population_week * 24  ~ "Below"),
+    `CMS (2008)` = case_when(
+      mapped_population*4 == serviceable_population_week * 4 ~ "Met",
+      mapped_population*4 < serviceable_population_week * 4 ~ "Above",
+      mapped_population*4 > serviceable_population_week * 4  ~ "Below"),
+    `Wadden et al. (2011)` = case_when(
+      mapped_population * 8 == serviceable_population_years * 2 ~ "Met",
+      mapped_population * 8 < serviceable_population_years * 2 ~ "Above",
+      mapped_population * 8 > serviceable_population_years * 2  ~ "Below"),
+    `AHA/ACC/TOS (2014)` = case_when(
+      (mapped_population*14) == serviceable_population_years/2 ~ "Met",
+      (mapped_population*14) < serviceable_population_years/2 ~ "Above",
+      (mapped_population*14) > serviceable_population_years/2  ~ "Below"))
+
+facilities_per_year <- mapped_diplomates_unique %>%
+  ungroup() %>%
+  group_by(Year) %>%
+  tally(.)
+
+mapped_diplomates_unique_long <- mapped_diplomates_unique %>%
+  select(Hospital, Year, `NHLBI (2000)`, `DPP (2002)`, `CMS (2008)`, `Wadden et al. (2011)`, `AHA/ACC/TOS (2014)`) %>%
+  melt(id = c("Hospital", "Year")) %>%
+  left_join(., facilities_per_year, by = c("Year")) %>%
+  group_by(Year, variable, value) %>%
+  mutate(count = n(),
+         percent = n()/n * 100)
+
+mapped_diplomates_unique_long$value <- as.factor(mapped_diplomates_unique_long$value)
+mapped_diplomates_unique_long$value <- relevel(mapped_diplomates_unique_long$value, ref = "Below")
+
+mapped_diplomates_unique_long$variable <- factor(mapped_diplomates_unique_long$variable, levels = c("CMS (2008)", "DPP (2002)", "AHA/ACC/TOS (2014)",
+                                                                                                    "NHLBI (2000)", "Wadden et al. (2011)"))
+
+mapped_diplomates_unique_long %>%
+  filter(value == "Above") %>%
+  distinct(Year, variable, .keep_all = TRUE) %>%
+  ggplot(aes(x = variable, y = percent, fill = variable)) +
+  geom_bar(stat = "identity", color = "black") +
+  facet_wrap(~Year) + 
+  theme_classic() + 
+  coord_flip() +
+  labs(x = "Guidelines",
+       y = "Percent (%)",
+       title = "Percent of Facilities Above Specified Guidelines",
+       fill = "Guidelines") +
+  scale_fill_npg()
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("201124_Guidelines.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+```
+
+# Updated Serviceable Population Based on Auden's Estimates
+```{r}
+mapped_diplomates_unique$serviceable_population_year_min <-  floor(mapped_diplomates_unique$cumulative_diplomates * 36 * 48)
+mapped_diplomates_unique$serviceable_population_year_max <-  floor(mapped_diplomates_unique$cumulative_diplomates * 72 * 48)
+mapped_diplomates_unique$serviceable_population_week_mcclure_min <-  floor(mapped_diplomates_unique$cumulative_diplomates * 36)
+mapped_diplomates_unique$serviceable_population_week_mcclure_max <-  floor(mapped_diplomates_unique$cumulative_diplomates * 72)
+
+mapped_diplomates_unique %<>%
+  mutate(`NHLBI (2000) Min` = case_when(
+    mapped_population == serviceable_population_year_min/12 ~ "Met",
+    mapped_population < serviceable_population_year_min/12 ~ "Above",
+    mapped_population >serviceable_population_year_min/12 ~ "Below"),
+    `DPP (2002)` = case_when(
+      mapped_population*16 == serviceable_population_week_mcclure_min * 24 ~ "Met",
+      mapped_population*16 < serviceable_population_week_mcclure_min * 24 ~ "Above",
+      mapped_population*16 > serviceable_population_week_mcclure_min * 24  ~ "Below"),
+    `CMS (2008) Min` = case_when(
+      mapped_population*4 == serviceable_population_week_mcclure_min * 4 ~ "Met",
+      mapped_population*4 < serviceable_population_week_mcclure_min * 4 ~ "Above",
+      mapped_population*4 > serviceable_population_week_mcclure_min * 4  ~ "Below"),
+    `Wadden et al. (2011) Min` = case_when(
+      mapped_population * 8 == serviceable_population_year_min * 2 ~ "Met",
+      mapped_population * 8 < serviceable_population_year_min * 2 ~ "Above",
+      mapped_population * 8 > serviceable_population_year_min * 2  ~ "Below"),
+    `AHA/ACC/TOS (2014)` = case_when(
+      (mapped_population*14) == serviceable_population_year_min/2 ~ "Met",
+      (mapped_population*14) < serviceable_population_year_min/2 ~ "Above",
+      (mapped_population*14) > serviceable_population_year_min/2  ~ "Below"),
+    `DHMC WWC` = case_when(
+      mapped_population == (cumulative_diplomates*240*7.2)/2.5 ~ "Met",
+      mapped_population < (cumulative_diplomates*240*7.2)/2.5 ~ "Above",
+      mapped_population > (cumulative_diplomates*240*7.2)/2.5 ~ "Below"
+    ),
+    `Wadden et al. (2011) Max` = case_when(
+      mapped_population * 8 == serviceable_population_year_max * 2 ~ "Met",
+      mapped_population * 8 < serviceable_population_year_max * 2 ~ "Above",
+      mapped_population * 8 > serviceable_population_year_max * 2  ~ "Below"),
+    `CMS (2008) Max` = case_when(
+      mapped_population*4 == serviceable_population_week_mcclure_max * 4 ~ "Met",
+      mapped_population*4 < serviceable_population_week_mcclure_max * 4 ~ "Above",
+      mapped_population*4 > serviceable_population_week_mcclure_max * 4  ~ "Below"),
+    `NHLBI (2000) Max` = case_when(
+    mapped_population == serviceable_population_year_max/12 ~ "Met",
+    mapped_population < serviceable_population_year_max/12 ~ "Above",
+    mapped_population >serviceable_population_year_max/12 ~ "Below"))
+
+facilities_per_year <- mapped_diplomates_unique %>%
+  ungroup() %>%
+  group_by(Year) %>%
+  tally(.)
+
+mapped_diplomates_unique_long <- mapped_diplomates_unique %>%
+  select(Hospital, Year, `NHLBI (2000) Min`, `NHLBI (2000) Max`, `CMS (2008) Min`, `CMS (2008) Max`, `Wadden et al. (2011) Min`, `Wadden et al. (2011) Max`, `DHMC WWC`) %>%
+  melt(id = c("Hospital", "Year")) %>%
+  left_join(., facilities_per_year, by = c("Year")) %>%
+  group_by(Year, variable, value) %>%
+  mutate(count = n(),
+         percent = n()/n * 100)
+
+mapped_diplomates_unique_long$value <- as.factor(mapped_diplomates_unique_long$value)
+mapped_diplomates_unique_long$value <- relevel(mapped_diplomates_unique_long$value, ref = "Below")
+
+mapped_diplomates_unique_long %<>%
+  mutate(variable_new = case_when(
+    variable == "NHLBI (2000) Min" | variable == "NHLBI (2000) Max" ~ "NHLBI (2000)",
+    variable == "CMS (2008) Min" | variable == "CMS (2008) Max" ~ "CMS (2008)",
+    variable == "Wadden et al. (2011) Min" | variable == "Wadden et al. (2011) Max" ~ "Wadden et al. (2011)",
+    variable == "DHMC WWC" ~ "DHMC WWC"))
+
+mapped_diplomates_unique_long$variable_new <- factor(mapped_diplomates_unique_long$variable_new, levels = c("CMS (2008)", "NHLBI (2000)", "DHMC WWC", "Wadden et al. (2011)"))
+show_col(pal_npg(alpha = 0.6)(4))
+
+mapped_diplomates_unique_long$variable <- factor(mapped_diplomates_unique_long$variable, levels = c("NHLBI (2000) Max",
+                                                                                                    "NHLBI (2000) Min",
+                                                                                                    "CMS (2008) Max",
+                                                                                                    "CMS (2008) Min",
+                                                                                                    "Wadden et al. (2011) Max",
+                                                                                                    "Wadden et al. (2011) Min",
+                                                                                                    "DHMC WWC"))
+
+
+#E64B35FF (#E64B3599), #4DBBD5FF (#4DBBD599), #00A087FF (#00A08799), #3C5488FF (#3C548899)
+
+mapped_diplomates_unique_long %>%
+  filter(value == "Above") %>%
+  filter(variable_new != "DHMC WWC") %>% #Removing DHMC WWC per Auden's Request
+  distinct(Year, variable, .keep_all = TRUE) %>%
+  mutate(hatch = case_when(
+    variable == "NHLBI (2000) Min" | variable == "CMS (2008) Min" | variable == "Wadden et al. (2011) Min" ~ "Min",
+    TRUE ~ "Max")) %>%
+  ggplot(aes(x = variable_new, y = percent, fill = variable, pattern = hatch)) +
+  geom_bar_pattern(stat = "identity", 
+                   color = "black",
+                   pattern_fill = "black",
+                   pattern_angle = -315,
+                   pattern_density = 0.01,
+                   pattern_spacing = 0.025,
+                   pattern_key_scale_factor = 0.6) +
+  facet_wrap(~Year) + 
+  theme_classic() + 
+  coord_flip() +
+  labs(x = "Guidelines",
+       y = "Percent (%)",
+       title = "Percent of Facilities that have Capacity to\nServe the Mapped Patient Population",
+       fill = element_blank(),
+       pattern = "Max or Min") +
+  scale_fill_manual(values = c("#E64B3599", "#E64B35FF", "#4DBBD599", "#4DBBD5FF", "#00A08799", "#00A087FF")) +
+  scale_pattern_manual(values = c(Min = "stripe", Max = "none")) +
+  theme(legend.position = "bottom", legend.box = "vertical", legend.margin = margin(), legend.justification = "center") +
+  guides(pattern = guide_legend(override.aes = list(fill = "white")),
+         fill = guide_legend(override.aes = list(pattern = "none")))
+  #scale_y_continuous(breaks = seq(0, 1.5, 0.5))
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("210613_Guidelines_NoDHMC_withHatch.tiff", width = 8.25, height = 4.51) #7.29 x 4.51
+#ggsave("210407_Guidelines_Original.tiff", width = 8.25, height = 4.51) #7.29 x 4.51
+
+
+View(mapped_diplomates_unique_long %>%
+  group_by(variable, Year, value) %>%
+  distinct(variable, .keep_all = TRUE) %>%
+  summarise(percent))
+
+# Diabetes DPP
+mapped_diplomates_unique %>%
+  filter(Year == 2019 & `Wadden et al. (2011) Max` == "Above") %>%
+  group_by(Census_Region) %>%
+  summarise(sum(mapped_population),
+            (sum(mapped_population)*0.13 * 0.58),
+            (sum(mapped_population)*0.13) - (sum(mapped_population)*0.13 * 0.58))
+
+mapped_diplomates_unique %>%
+  ungroup() %>%
+  filter(Year == 2019) %>%
+  group_by(Census_Region) %>%
+  summarise(sum(mapped_population),
+            diabetes = (sum(mapped_population)*0.13 * 0.58)) %>%
+  ungroup() %>%
+  mutate(sum(diabetes))
+  
+
+# Look Ahead
+mapped_diplomates_unique %>%
+  filter(Year == 2019 & `Wadden et al. (2011) Max` == "Above") %>%
+  group_by(Census_Region) %>%
+  mutate(hbac1_ar = (3.52-1)/3.52,
+         diastolic_ar = (1.48-1)/1.48,
+         systolic_ar = (1.56-1)/1.56,
+         hdl_ar = (1.69 - 1)/1.69,
+         ldl_arc = (2.20-1)/2.20) %>%
+  summarise(total_pop = sum(mapped_population),
+            hba1c = (sum(mapped_population)*0.13*hbac1_ar),
+            diastolic = (sum(mapped_population)*0.13*diastolic_ar),
+            systolic = (sum(mapped_population)*0.13*systolic_ar),
+            hdl = (sum(mapped_population)*0.13*hdl_ar),
+            ldl = (sum(mapped_population)*0.13*ldl_arc),
+            ) %>%
+  distinct(.) %>%
+  ungroup() %>%
+  summarise(sum(total_pop),
+            sum(hba1c),
+            sum(diastolic),
+            sum(systolic),
+            sum(hdl),
+            sum(ldl))
+
+mapped_diplomates_unique %>%
+  filter(Year == 2019) %>%
+  group_by(Census_Region) %>%
+  mutate(hbac1_ar = (3.52-1)/3.52,
+         diastolic_ar = (1.48-1)/1.48,
+         systolic_ar = (1.56-1)/1.56,
+         hdl_ar = (1.69 - 1)/1.69,
+         ldl_arc = (2.20-1)/2.20) %>%
+  summarise(total_pop = sum(mapped_population),
+            hba1c = (sum(mapped_population)*0.13*hbac1_ar),
+            diastolic = (sum(mapped_population)*0.13*diastolic_ar),
+            systolic = (sum(mapped_population)*0.13*systolic_ar),
+            hdl = (sum(mapped_population)*0.13*hdl_ar),
+            ldl = (sum(mapped_population)*0.13*ldl_arc),
+            ) %>%
+  distinct(.) %>%
+  ungroup() %>%
+  summarise(sum(total_pop),
+            sum(hba1c),
+            sum(diastolic),
+            sum(systolic),
+            sum(hdl),
+            sum(ldl))
+
+
+```
+
+# Comorbidity Analysis with Diabetes
+```{r}
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data") #Set Working Directory
+files <- list.files(pattern = glob2rx("*County Health Ranking*")) #Read in All Files from County Health Rankings
+
+all_diabetic <- read_excel(files[1], sheet = "Additional Measure Data") #Read in first file
+all_diabetic <- all_diabetic[,c(1:3, which(all_diabetic[1,] == "Diabetes"))] #Extract just the location and obesity prevalence 
+colnames(all_diabetic) <- all_diabetic[1,] #Switch column names
+all_diabetic <- all_diabetic[2:nrow(all_diabetic),] #Get rid of first row that is duplicate column names
+all_diabetic$Year <- substring(files[1], 1, 4) #Add year
+
+ #reading each file within the range and append them to create one file
+for (f in files[-1]) {
+  print(f)
+   #print(f) #For running purposes
+   dat_loop <- read_excel(f, sheet = "Additional Measure Data") #Read in first file
+   dat_loop <- dat_loop[,c(1:3, which(dat_loop[1,] == "Diabetes" | dat_loop[1,] == "% diabetic" | dat_loop[1,] == "% Diabetic"))] #Extract just the location and obesity prevalence 
+   colnames(dat_loop) <- dat_loop[1,] #Switch column names
+   dat_loop <- dat_loop[2:nrow(dat_loop),] #Get rid of first row that is duplicate column names
+   dat_loop$Year <- substring(f, 1, 4) #Add year
+   colnames(dat_loop) <- c("FIPS", "State", "County", "Diabetes", "Year")
+   all_diabetic <- rbind(all_diabetic, dat_loop)    # append the current file
+}
+
+all_diabetic <- as.data.frame(all_diabetic)
+```
+
+# Diabetes 
+```{r}
+all_diabetic$FIPS <- as.numeric(all_diabetic$FIPS)
+all_diabetic$Diabetes <- as.numeric(all_diabetic$Diabetes)
+all_diabetic$Year <- as.numeric(all_diabetic$Year)
+
+raw_map_new <- raw_map
+
+raw_map_new %<>% 
+  full_join(all_diabetic, by = c("State", "County", "Year", "FIPS")) %>%
+  group_by(STATEFP, COUNTYFP, Year)
+
+## Note -- the columns now denote the new obese population, so the original obese population needs to be subtracted out
+
+mapped_diplomates_unique_diabetes <- raw_map_new %>%
+  group_by(State, County) %>%
+  mutate(percent_diabetic = trunc(POPULATION * (Diabetes)/100)) %>%
+  ungroup() %>%
+  group_by(Year, Hospital) %>%
+  mutate(mapped_tracts = n(),
+         mapped_population_with_diabetes = sum(percent_diabetic)) %>%
+  right_join(mapped_diplomates_unique) %>%
+  mutate(population_reduced_diabetes_all = floor(mapped_population_with_diabetes - 0.2*mapped_population))
+
+mapped_diplomates_unique_diabetes %>%
+  group_by(Year, Census_Region) %>%
+  summarise(test = 100 - sum(population_reduced_diabetes_all, na.rm = TRUE)/sum(mapped_population_with_diabetes, na.rm = TRUE) * 100) %>%
+  ggplot(aes(x = Year, y = test, fill = Census_Region)) +
+  geom_bar(stat = "identity", color = "black") +
+  facet_wrap(~Census_Region) +
+  theme_classic() +
+  scale_x_continuous(breaks = seq(2011, 2019, 2)) +
+  scale_y_continuous(label = comma) +
+  scale_fill_jama() +
+  labs(y = "Percent of Diabetes Cases 'Removed' From Population",
+       title = "Change in Diabetes Prevalence through Diplomate Accessibility",
+       fill = "Census Region")
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("201215_Diabetes_AllSeen.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+mapped_diplomates_unique_diabetes %<>%
+  mutate(population_reduced_diabetes_serviced = floor(mapped_population_with_diabetes - 0.2*serviceable_population_year_min),
+         population_reduced_diabetes_am = floor(mapped_population_with_diabetes - 0.2*((cumulative_diplomates*240*7.2)/2.5)))
+
+mapped_diplomates_unique_diabetes %>%
+  group_by(Year, Census_Region) %>%
+  summarise(test = 100 - sum(population_reduced_diabetes_serviced, na.rm = TRUE)/sum(mapped_population_with_diabetes, na.rm = TRUE) * 100) %>%
+  ggplot(aes(x = Year, y = test, fill = Census_Region)) +
+  geom_bar(stat = "identity", color = "black") +
+  facet_wrap(~Census_Region) +
+  theme_classic() +
+  scale_x_continuous(breaks = seq(2011, 2019, 2)) +
+  scale_y_continuous(label = comma) +
+  scale_fill_jama() +
+  labs(y = "Percent of Diabetes Cases 'Removed' From Population",
+       title = "Change in Diabetes Prevalence through Diplomate Accessibility",
+       fill = "Census Region")
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("201215_Diabetes_ServiceableYear.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+mapped_diplomates_unique_diabetes %>%
+  group_by(Year, Census_Region) %>%
+  summarise(test = 100 - sum(population_reduced_diabetes_am, na.rm = TRUE)/sum(mapped_population_with_diabetes, na.rm = TRUE) * 100) %>%
+  ggplot(aes(x = Year, y = test, fill = Census_Region)) +
+  geom_bar(stat = "identity", color = "black") +
+  facet_wrap(~Census_Region) +
+  theme_classic() +
+  scale_x_continuous(breaks = seq(2011, 2019, 2)) +
+  scale_y_continuous(label = comma) +
+  scale_fill_jama() +
+  labs(y = "Percent of Diabetes Cases 'Removed' From Population",
+       title = "Change in Diabetes Prevalence through Diplomate Accessibility",
+       fill = "Census Region")
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("201215_Diabetes_AM.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+
+mapped_diplomates_unique_diabetes_2019_only <- filter(mapped_diplomates_unique_diabetes, Year == 2019)
+
+# 43% reduction in diabetes
+(sum(mapped_diplomates_unique_diabetes_2019_only$mapped_population_with_diabetes, na.rm = TRUE) - sum(mapped_diplomates_unique_diabetes_2019_only$population_reduced_diabetes_all, na.rm = TRUE) - sum(mapped_diplomates_unique_diabetes_2019_only$mapped_population_with_diabetes, na.rm = TRUE))/sum(mapped_diplomates_unique_diabetes_2019_only$mapped_population_with_diabetes, na.rm = TRUE)
+
+(sum(mapped_diplomates_unique_diabetes_2019_only$mapped_population_with_diabetes, na.rm = TRUE) - sum(mapped_diplomates_unique_diabetes_2019_only$population_reduced_diabetes_serviced, na.rm = TRUE) - sum(mapped_diplomates_unique_diabetes_2019_only$mapped_population_with_diabetes, na.rm = TRUE))/sum(mapped_diplomates_unique_diabetes_2019_only$mapped_population_with_diabetes, na.rm = TRUE)
+
+(sum(mapped_diplomates_unique_diabetes_2019_only$mapped_population_with_diabetes, na.rm = TRUE) - sum(mapped_diplomates_unique_diabetes_2019_only$population_reduced_diabetes_am, na.rm = TRUE) - sum(mapped_diplomates_unique_diabetes_2019_only$mapped_population_with_diabetes, na.rm = TRUE))/sum(mapped_diplomates_unique_diabetes_2019_only$mapped_population_with_diabetes, na.rm = TRUE)
+
+```
+
+# Calculate number of diplomates
+```{r}
+diplomate_people <- as.data.frame(rbind(final_diplomates, address_diplomates, originally_missed_address_new, originally_missed_hospitals_new))
+
+diplomate_people %>%
+  filter(Name %in% adult_only$Name | Name %in% missing_certification_complete_adult_only$Name) %>%
+  distinct(Name, .keep_all = TRUE) %>%
+  mutate(year_new = ifelse(Year <= 2011, 2011, Year)) %>%
+  group_by(year_new) %>%
+  summarise(n())
+```
+
+# Weighted Median Travel Prevalence by Demographic Group
+```{r}
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+acs_2011_counties_new<- read.csv("210315_acs_2011_counties.csv")
+acs_2011_us_new<- read.csv("210315_acs_2011_us.csv")
+acs_2019_counties_new<- read.csv("210315_acs_2019_counties.csv")
+acs_2019_us_new<- read.csv("210315_acs_2019_us.csv")
+
+acs_2011_counties_new <- acs_2011_counties_new[,colSums(is.na(acs_2011_counties_new))<nrow(acs_2011_counties_new)]
+acs_2011_us_new <- acs_2011_us_new[,colSums(is.na(acs_2011_us_new))<nrow(acs_2011_us_new)]
+acs_2019_counties_new <- acs_2019_counties_new[,colSums(is.na(acs_2019_counties_new))<nrow(acs_2019_counties_new)]
+acs_2019_us_new <- acs_2019_us_new[,colSums(is.na(acs_2019_us_new))<nrow(acs_2019_us_new)]
+
+acs_2011_counties_new %<>%
+  select(-SE_A02001_001, -SE_A01001_001, -SE_A03001_001, -SE_A04001_001, -SE_A12001_001)
+
+colnames(acs_2011_counties_new)[12:ncol(acs_2011_counties_new)] <- c("total_pop", "total_male", "total_female", "0to5", "5to9", "10to14", "15to17", "18to24", "25to34", "35to44", "45to54", "55to64", "65to74", "75to84", "85plus", "white", "black", "americanindian", "asian", "nativehawaiian", "someotherrace", "twoormore", "nothispanic", "nhwhite", "whblack", "nhamericanindian", "nhasian", "nhnativehawaiian", "nhsomeotherrace", "nhtwoormore", "hispanicorlatino", "hwhite", "hblack", "hamericanindian", "hasian", "hnativehawaiian", "hsomeotherrace", "htwoormore", "under_hs", "hs_grad", "some_college", "bachelors_degree", "masters_degree", "professional_degree", "doctorate_degree", "medianhouseholdincome")
+
+acs_2011_us_new %<>%
+  select(-SE_A02001_001, -SE_A01001_001, -SE_A03001_001, -SE_A04001_001, -SE_A12001_001)
+
+colnames(acs_2011_us_new)[11:ncol(acs_2011_us_new)] <- c("total_pop", "total_male", "total_female", "0to5", "5to9", "10to14", "15to17", "18to24", "25to34", "35to44", "45to54", "55to64", "65to74", "75to84", "85plus", "white", "black", "americanindian", "asian", "nativehawaiian", "someotherrace", "twoormore", "nothispanic", "nhwhite", "whblack", "nhamericanindian", "nhasian", "nhnativehawaiian", "nhsomeotherrace", "nhtwoormore", "hispanicorlatino", "hwhite", "hblack", "hamericanindian", "hasian", "hnativehawaiian", "hsomeotherrace", "htwoormore", "under_hs", "hs_grad", "some_college", "bachelors_degree", "masters_degree", "professional_degree", "doctorate_degree", "medianhouseholdincome")
+
+acs_2019_counties_new %<>%
+  select(-SE_A02001_001, -SE_A01001_001, -SE_A03001_001, -SE_A04001_001, -SE_A12001_001)
+
+colnames(acs_2019_counties_new)[12:ncol(acs_2019_counties_new)] <- c("total_pop", "total_male", "total_female", "0to5", "5to9", "10to14", "15to17", "18to24", "25to34", "35to44", "45to54", "55to64", "65to74", "75to84", "85plus", "white", "black", "americanindian", "asian", "nativehawaiian", "someotherrace", "twoormore", "nothispanic", "nhwhite", "whblack", "nhamericanindian", "nhasian", "nhnativehawaiian", "nhsomeotherrace", "nhtwoormore", "hispanicorlatino", "hwhite", "hblack", "hamericanindian", "hasian", "hnativehawaiian", "hsomeotherrace", "htwoormore", "under_hs", "hs_grad", "some_college", "bachelors_degree", "masters_degree", "professional_degree", "doctorate_degree", "medianhouseholdincome")
+
+acs_2019_us_new %<>%
+  select(-SE_A02001_001, -SE_A01001_001, -SE_A03001_001, -SE_A04001_001, -SE_A12001_001)
+
+colnames(acs_2019_us_new)[11:ncol(acs_2019_us_new)] <- c("total_pop", "total_male", "total_female", "0to5", "5to9", "10to14", "15to17", "18to24", "25to34", "35to44", "45to54", "55to64", "65to74", "75to84", "85plus", "white", "black", "americanindian", "asian", "nativehawaiian", "someotherrace", "twoormore", "nothispanic", "nhwhite", "whblack", "nhamericanindian", "nhasian", "nhnativehawaiian", "nhsomeotherrace", "nhtwoormore", "hispanicorlatino", "hwhite", "hblack", "hamericanindian", "hasian", "hnativehawaiian", "hsomeotherrace", "htwoormore", "under_hs", "hs_grad", "some_college", "bachelors_degree", "masters_degree", "professional_degree", "doctorate_degree", "medianhouseholdincome")
+
+dat_tt_one_2011 <- dat_tt_one %>%
+  filter(Year == 2011) %>%
+  left_join(., acs_2011_counties_new, by = c("FIPS" = "Geo_FIPS")) %>%
+  left_join(., rucc, by = c("FIPS"))
+
+dat_tt_one_2011 %<>%
+  mutate(weighted_total_pop = total_pop/acs_2011_us_new$total_pop,
+         weighted_total_male = total_male/acs_2011_us_new$total_male,
+         weighted_total_female = total_female/acs_2011_us_new$total_female,
+         weighted_adult = (`18to24` + `25to34` + `35to44` + `45to54` + `55to64`)/(acs_2011_us_new$`18to24` + acs_2011_us_new$`25to34` + acs_2011_us_new$`35to44` + acs_2011_us_new$`45to54` + acs_2011_us_new$`55to64`),
+         weighted_geriatric = (`65to74` + `75to84` + `85plus`)/(acs_2011_us_new$`65to74` + acs_2011_us_new$`75to84` + acs_2011_us_new$`85plus`),
+         weighted_white = white/acs_2011_us_new$white,
+         weighted_black = black/acs_2011_us_new$black,
+         weighted_americanindian = americanindian/acs_2011_us_new$americanindian,
+         weighted_asian = asian/acs_2011_us_new$asian,
+         weighted_nativehawaiian = nativehawaiian/acs_2011_us_new$nativehawaiian,
+         weighted_someotherrace = someotherrace/acs_2011_us_new$someotherrace,
+         weighted_twoormore = twoormore/acs_2011_us_new$twoormore,
+         weighted_nothispanic = nothispanic/acs_2011_us_new$nothispanic,
+         weighted_hispanicorlatino = hispanicorlatino/acs_2011_us_new$hispanicorlatino,
+         weighted_under_hs = under_hs/acs_2011_us_new$under_hs,
+         weighted_hs_grad = hs_grad/acs_2011_us_new$hs_grad,
+         weighted_some_college = some_college/acs_2011_us_new$some_college,
+         weighted_bachelors_degree = bachelors_degree/acs_2011_us_new$bachelors_degree,
+         weighted_above_college = (masters_degree + professional_degree + doctorate_degree)/(acs_2011_us_new$masters_degree + acs_2011_us_new$professional_degree + acs_2011_us_new$doctorate_degree))
+
+
+sapply(colnames(dat_tt_one_2011)[89:107], function(x) {
+  print(x)
+  dat_tt_one_2011 %>%
+  ungroup() %>%
+  summarise(weighted.quantile(Median_Travel, w = get(x))
+            )})
+
+# Sex
+wtd.t.test(dat_tt_one_2011$Median_Travel, 
+           dat_tt_one_2011$Median_Travel, 
+           weight= dat_tt_one_2011$weighted_total_male, 
+           weighty = dat_tt_one_2011$weighted_total_female) #p = 0.61
+# Age
+wtd.t.test(dat_tt_one_2011$Median_Travel, 
+           dat_tt_one_2011$Median_Travel, 
+           weight= dat_tt_one_2011$weighted_adult, 
+           weighty = dat_tt_one_2011$weighted_geriatric) #p = 0.14
+#Race
+race_weights <- dat_tt_one_2011 %>%
+  select(Median_Travel, weighted_white, weighted_black, weighted_americanindian, weighted_asian, weighted_nativehawaiian,
+         weighted_someotherrace, weighted_twoormore) %>%
+  melt(id = "Median_Travel")
+summary(lm(Median_Travel ~ variable, 
+   weights = value,
+   data = race_weights))
+
+# Ethnicity
+wtd.t.test(dat_tt_one_2011$Median_Travel, 
+           dat_tt_one_2011$Median_Travel, 
+           weight= dat_tt_one_2011$weighted_nothispanic, 
+           weighty = dat_tt_one_2011$weighted_hispanicorlatino) #p <.001
+
+# Education
+education_weights <- dat_tt_one_2011 %>%
+  select(Median_Travel, weighted_under_hs, weighted_hs_grad, weighted_some_college, weighted_bachelors_degree,
+         weighted_above_college) %>%
+  melt(id = "Median_Travel")
+summary(lm(Median_Travel ~ variable, 
+   weights = value,
+   data = education_weights))
+
+summary(dat_tt_one_2011$medianhouseholdincome)
+
+#Income
+dat_tt_one_2011 %<>%
+  mutate(medianhouseholdincome_quartile = case_when(
+    medianhouseholdincome <= as.numeric(summary(dat_tt_one_2011$medianhouseholdincome)[2]) ~ "first_quartile",
+    medianhouseholdincome > as.numeric(summary(dat_tt_one_2011$medianhouseholdincome)[2]) &
+      medianhouseholdincome <= as.numeric(summary(dat_tt_one_2011$medianhouseholdincome)[3]) ~ "second_quartile",
+    medianhouseholdincome > as.numeric(summary(dat_tt_one_2011$medianhouseholdincome)[3]) &
+      medianhouseholdincome <= as.numeric(summary(dat_tt_one_2011$medianhouseholdincome)[5]) ~ "third_quartile",  
+    medianhouseholdincome > as.numeric(summary(dat_tt_one_2011$medianhouseholdincome)[5]) ~ "fourth_quartile"))
+
+dat_tt_one_2011 %>%
+  ungroup() %>%
+  group_by(medianhouseholdincome_quartile) %>%
+  summarise(total_pop_quartile = sum(total_pop)/1000000,
+            total_pop_quartile_percent = sum(total_pop)/1000000/306.603772 * 100)
+
+dat_tt_one_2011 %<>%
+  ungroup() %>%
+  group_by(medianhouseholdincome_quartile) %>%
+  mutate(total_pop_quartile = sum(total_pop)) %>% 
+  ungroup() %>%
+  mutate(weighted_median_income_county_pop = total_pop/total_pop_quartile)
+
+for (quartile in unique(dat_tt_one_2011$medianhouseholdincome_quartile)) {
+  print(quartile)
+  dat_tt_one_2011 %>%
+    ungroup %>%
+    filter(medianhouseholdincome_quartile == quartile) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_median_income_county_pop)) %>%
+    print(.)
+}
+
+# Income
+summary(lm(Median_Travel ~ medianhouseholdincome_quartile, 
+   weights = weighted_median_income_county_pop,
+   data = dat_tt_one_2011))
+
+
+#Rurality
+
+dat_tt_one_2011 %<>%
+  ungroup() %>%
+  mutate(rucc_categorical = case_when(
+  RUCC_2013 <= 3 ~ "Metro",
+  RUCC_2013 >= 4 & RUCC_2013 <= 6 ~ "Suburban",
+  RUCC_2013 >=7 ~ "Rural")) %>%
+  group_by(rucc_categorical) %>%
+  mutate(total_pop_rucc = sum(total_pop)) %>% 
+  ungroup() %>%
+  mutate(weighted_rucc_county_pop = total_pop/total_pop_rucc)
+
+dat_tt_one_2011 %>%
+  ungroup() %>%
+  group_by(rucc_categorical) %>%
+  summarise(total_pop_rucc = sum(total_pop)/1000000,
+            total_pop_rucc_percent = sum(total_pop)/1000000/306.603772 * 100)
+
+for (rucc in unique(dat_tt_one_2011$rucc_categorical)) {
+  print(rucc)
+  dat_tt_one_2011 %>%
+    ungroup %>%
+    filter(rucc_categorical == rucc) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_rucc_county_pop)) %>%
+    print(.)
+}
+
+summary(lm(Median_Travel ~ rucc_categorical, 
+   weights = weighted_rucc_county_pop,
+   data = dat_tt_one_2011))
+
+#Census Region
+
+dat_tt_one_2011 %<>%
+  ungroup() %>%
+  group_by(Census_Region) %>%
+  mutate(total_pop_census = sum(total_pop)) %>% 
+  ungroup() %>%
+  mutate(weighted_census_county_pop = total_pop/total_pop_census)
+
+dat_tt_one_2011 %>%
+  ungroup() %>%
+  group_by(Census_Region) %>%
+  summarise(total_pop_census = sum(total_pop)/1000000,
+            total_pop_census_percent = sum(total_pop)/1000000/306.603772 * 100)
+
+for (census in unique(dat_tt_one_2011$Census_Region)) {
+  print(census)
+  dat_tt_one_2011 %>%
+    ungroup %>%
+    filter(Census_Region == census) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_census_county_pop)) %>%
+    print(.)
+}
+
+summary(lm(Median_Travel ~ Census_Region, 
+   weights = weighted_census_county_pop,
+   data = dat_tt_one_2011))
+
+apply(acs_2011_us_new[11:56], 1, function(x) {x/1000000})
+apply(acs_2011_us_new[11:56], 1, function(x) {x/1000000/306.603772 * 100})
+```
+
+# Repeat 2011 Analysis above but for 2019
+```{r}
+dat_tt_one_2019 <- dat_tt_one %>%
+  filter(Year == 2019) %>%
+  left_join(., acs_2019_counties_new, by = c("FIPS" = "Geo_FIPS")) %>%
+  left_join(., rucc, by = c("FIPS"))
+
+dat_tt_one_2019 %<>%
+  mutate(weighted_total_pop = total_pop/acs_2019_us_new$total_pop,
+         weighted_total_male = total_male/acs_2019_us_new$total_male,
+         weighted_total_female = total_female/acs_2019_us_new$total_female,
+         weighted_adult = (`18to24` + `25to34` + `35to44` + `45to54` + `55to64`)/(acs_2019_us_new$`18to24` + acs_2019_us_new$`25to34` + acs_2019_us_new$`35to44` + acs_2019_us_new$`45to54` + acs_2019_us_new$`55to64`),
+         weighted_geriatric = (`65to74` + `75to84` + `85plus`)/(acs_2019_us_new$`65to74` + acs_2019_us_new$`75to84` + acs_2019_us_new$`85plus`),
+         weighted_white = white/acs_2019_us_new$white,
+         weighted_black = black/acs_2019_us_new$black,
+         weighted_americanindian = americanindian/acs_2019_us_new$americanindian,
+         weighted_asian = asian/acs_2019_us_new$asian,
+         weighted_nativehawaiian = nativehawaiian/acs_2019_us_new$nativehawaiian,
+         weighted_someotherrace = someotherrace/acs_2019_us_new$someotherrace,
+         weighted_twoormore = twoormore/acs_2019_us_new$twoormore,
+         weighted_nothispanic = nothispanic/acs_2019_us_new$nothispanic,
+         weighted_hispanicorlatino = hispanicorlatino/acs_2019_us_new$hispanicorlatino,
+         weighted_under_hs = under_hs/acs_2019_us_new$under_hs,
+         weighted_hs_grad = hs_grad/acs_2019_us_new$hs_grad,
+         weighted_some_college = some_college/acs_2019_us_new$some_college,
+         weighted_bachelors_degree = bachelors_degree/acs_2019_us_new$bachelors_degree,
+         weighted_above_college = (masters_degree + professional_degree + doctorate_degree)/(acs_2019_us_new$masters_degree + acs_2019_us_new$professional_degree + acs_2019_us_new$doctorate_degree))
+
+
+sapply(colnames(dat_tt_one_2019)[89:107], function(x) {
+  print(x)
+  dat_tt_one_2019 %>%
+  ungroup() %>%
+  summarise(weighted.quantile(Median_Travel, w = get(x))
+            )})
+
+
+# Sex
+wtd.t.test(dat_tt_one_2019$Median_Travel, 
+           dat_tt_one_2019$Median_Travel, 
+           weight= dat_tt_one_2019$weighted_total_male, 
+           weighty = dat_tt_one_2019$weighted_total_female) #p = 0.60
+# Age
+wtd.t.test(dat_tt_one_2019$Median_Travel, 
+           dat_tt_one_2019$Median_Travel, 
+           weight= dat_tt_one_2019$weighted_adult, 
+           weighty = dat_tt_one_2019$weighted_geriatric) #p = 0.003
+#Race
+race_weights_2019 <- dat_tt_one_2019 %>%
+  select(Median_Travel, weighted_white, weighted_black, weighted_americanindian, weighted_asian, weighted_nativehawaiian,
+         weighted_someotherrace, weighted_twoormore) %>%
+  melt(id = "Median_Travel")
+summary(lm(Median_Travel ~ variable, 
+   weights = value,
+   data = race_weights_2019))
+
+# Ethnicity
+wtd.t.test(dat_tt_one_2019$Median_Travel, 
+           dat_tt_one_2019$Median_Travel, 
+           weight= dat_tt_one_2019$weighted_nothispanic, 
+           weighty = dat_tt_one_2019$weighted_hispanicorlatino) #p <.001
+
+# Education
+education_weights_2019 <- dat_tt_one_2019 %>%
+  select(Median_Travel, weighted_under_hs, weighted_hs_grad, weighted_some_college, weighted_bachelors_degree,
+         weighted_above_college) %>%
+  melt(id = "Median_Travel")
+summary(lm(Median_Travel ~ variable, 
+   weights = value,
+   data = education_weights_2019))
+
+summary(dat_tt_one_2019$medianhouseholdincome)
+
+#Income
+dat_tt_one_2019 %<>%
+  mutate(medianhouseholdincome_quartile = case_when(
+    medianhouseholdincome <= as.numeric(summary(dat_tt_one_2019$medianhouseholdincome)[2]) ~ "first_quartile",
+    medianhouseholdincome > as.numeric(summary(dat_tt_one_2019$medianhouseholdincome)[2]) &
+      medianhouseholdincome <= as.numeric(summary(dat_tt_one_2019$medianhouseholdincome)[3]) ~ "second_quartile",
+    medianhouseholdincome > as.numeric(summary(dat_tt_one_2019$medianhouseholdincome)[3]) &
+      medianhouseholdincome <= as.numeric(summary(dat_tt_one_2019$medianhouseholdincome)[5]) ~ "third_quartile",  
+    medianhouseholdincome > as.numeric(summary(dat_tt_one_2019$medianhouseholdincome)[5]) ~ "fourth_quartile"))
+
+dat_tt_one_2019 %>%
+  ungroup() %>%
+  group_by(medianhouseholdincome_quartile) %>%
+  summarise(total_pop_quartile = sum(total_pop)/1000000,
+            total_pop_quartile_percent = sum(total_pop)/1000000/324.697795 * 100)
+
+dat_tt_one_2019 %<>%
+  ungroup() %>%
+  group_by(medianhouseholdincome_quartile) %>%
+  mutate(total_pop_quartile = sum(total_pop)) %>% 
+  ungroup() %>%
+  mutate(weighted_median_income_county_pop = total_pop/total_pop_quartile)
+
+for (quartile in unique(dat_tt_one_2019$medianhouseholdincome_quartile)) {
+  print(quartile)
+  dat_tt_one_2019 %>%
+    ungroup %>%
+    filter(medianhouseholdincome_quartile == quartile) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_median_income_county_pop)) %>%
+    print(.)
+}
+
+summary(lm(Median_Travel ~ medianhouseholdincome_quartile, 
+   weights = weighted_median_income_county_pop,
+   data = dat_tt_one_2019))
+
+#Rurality
+
+dat_tt_one_2019 %<>%
+  ungroup() %>%
+  mutate(rucc_categorical = case_when(
+  RUCC_2013 <= 3 ~ "Metro",
+  RUCC_2013 >= 4 & RUCC_2013 <= 6 ~ "Suburban",
+  RUCC_2013 >=7 ~ "Rural")) %>%
+  group_by(rucc_categorical) %>%
+  mutate(total_pop_rucc = sum(total_pop)) %>% 
+  ungroup() %>%
+  mutate(weighted_rucc_county_pop = total_pop/total_pop_rucc)
+
+dat_tt_one_2019 %>%
+  ungroup() %>%
+  group_by(rucc_categorical) %>%
+  summarise(total_pop_rucc = sum(total_pop)/1000000,
+            total_pop_rucc_percent = sum(total_pop)/1000000/324.697795 * 100)
+
+for (rucc in unique(dat_tt_one_2019$rucc_categorical)) {
+  print(rucc)
+  dat_tt_one_2019 %>%
+    ungroup %>%
+    filter(rucc_categorical == rucc) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_rucc_county_pop)) %>%
+    print(.)
+}
+
+summary(lm(Median_Travel ~ rucc_categorical, 
+   weights = weighted_rucc_county_pop,
+   data = dat_tt_one_2019))
+
+#Census Region
+
+dat_tt_one_2019 %<>%
+  ungroup() %>%
+  group_by(Census_Region) %>%
+  mutate(total_pop_census = sum(total_pop)) %>% 
+  ungroup() %>%
+  mutate(weighted_census_county_pop = total_pop/total_pop_census)
+
+dat_tt_one_2019 %>%
+  ungroup() %>%
+  group_by(Census_Region) %>%
+  summarise(weighted_census_county_pop = sum(total_pop)/1000000,
+            weighted_census_county_pop_percent = sum(total_pop)/1000000/324.697795 * 100)
+
+
+for (census in unique(dat_tt_one_2019$Census_Region)) {
+  print(census)
+  dat_tt_one_2019 %>%
+    ungroup %>%
+    filter(Census_Region == census) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_census_county_pop)) %>%
+    print(.)
+}
+
+summary(lm(Median_Travel ~ Census_Region, 
+   weights = weighted_census_county_pop,
+   data = dat_tt_one_2019))
+
+
+apply(acs_2019_us_new[11:56], 1, function(x) {x/1000000})
+apply(acs_2019_us_new[11:56], 1, function(x) {x/1000000/324.697795 * 100})
+
+```
+
+# 2011 vs. 2019 Travel Times
+```{r}
+# Overall
+wtd.t.test(dat_tt_one_2011$Median_Travel, 
+           dat_tt_one_2019$Median_Travel, 
+           weight= dat_tt_one_2011$weighted_total_pop, 
+           weighty = dat_tt_one_2019$weighted_total_pop) #p <.001
+
+# Sex
+sex_weights_2011 <- dat_tt_one_2011 %>%
+  select(Median_Travel, weighted_total_male, weighted_total_female) %>%
+  melt(id = "Median_Travel") %>%
+  mutate(year = 2011)
+
+sex_weights_2019 <- dat_tt_one_2019 %>%
+  select(Median_Travel, weighted_total_male, weighted_total_female) %>%
+  melt(id = "Median_Travel") %>%
+  mutate(year = 2019)
+
+sex_weights <- rbind(sex_weights_2011, sex_weights_2019)
+
+summary(lm(Median_Travel ~ variable*as.factor(year), 
+   weights = value,
+   data = sex_weights))
+
+# Age
+age_weights_2011 <- dat_tt_one_2011 %>%
+  select(Median_Travel, weighted_adult, weighted_geriatric) %>%
+  melt(id = "Median_Travel") %>%
+  mutate(year = 2011)
+
+age_weights_2019 <- dat_tt_one_2019 %>%
+  select(Median_Travel, weighted_adult, weighted_geriatric) %>%
+  melt(id = "Median_Travel") %>%
+  mutate(year = 2019)
+
+age_weights <- rbind(age_weights_2011, age_weights_2019)
+
+summary(lm(Median_Travel ~ variable*as.factor(year), 
+   weights = value,
+   data = age_weights))
+
+# Race
+race_weights_2011 <- race_weights %>%
+  mutate(year = 2011)
+
+race_weights_2019$year <- 2019
+
+race_weights_new <- rbind(race_weights_2011, race_weights_2019)
+
+summary(lm(Median_Travel ~ variable*as.factor(year), 
+   weights = value,
+   data = race_weights_new))
+
+# Ethnicity
+ethnicity_weights_2011 <- dat_tt_one_2011 %>%
+  select(Median_Travel, weighted_nothispanic, weighted_hispanicorlatino) %>%
+  melt(id = "Median_Travel") %>%
+  mutate(year = 2011)
+
+ethnicity_2019 <- dat_tt_one_2019 %>%
+  select(Median_Travel, weighted_nothispanic, weighted_hispanicorlatino) %>%
+  melt(id = "Median_Travel") %>%
+  mutate(year = 2019)
+
+ethnicity_weights <- rbind(ethnicity_weights_2011, ethnicity_2019)
+
+summary(lm(Median_Travel ~ variable*as.factor(year), 
+   weights = value,
+   data = ethnicity_weights))
+
+# Race
+education_weights_2011 <- education_weights %>%
+  mutate(year = 2011)
+
+education_weights_2019$year <- 2019
+
+education_weights_new <- rbind(education_weights_2011, education_weights_2019)
+
+summary(lm(Median_Travel ~ variable*as.factor(year), 
+   weights = value,
+   data = education_weights_new))
+
+# Median Household Income
+mhi_weights_2011 <- dat_tt_one_2011 %>%
+  select(Median_Travel, medianhouseholdincome_quartile, weighted_median_income_county_pop) %>%
+  melt(id = c("Median_Travel", "medianhouseholdincome_quartile")) %>%
+  mutate(year = 2011)
+
+mhi_weights_2019 <- dat_tt_one_2019 %>%
+  select(Median_Travel, medianhouseholdincome_quartile, weighted_median_income_county_pop) %>%
+  melt(id = c("Median_Travel", "medianhouseholdincome_quartile")) %>%
+  mutate(year = 2019)
+
+mhi_weights <- rbind(mhi_weights_2011, mhi_weights_2019)
+
+summary(lm(Median_Travel ~ medianhouseholdincome_quartile*as.factor(year), 
+   weights = value,
+   data = mhi_weights))
+
+# Rurality
+rucc_weights_2011 <- dat_tt_one_2011 %>%
+  select(Median_Travel, rucc_categorical, weighted_median_income_county_pop) %>%
+  melt(id = c("Median_Travel", "rucc_categorical")) %>%
+  mutate(year = 2011)
+
+rucc_weights_2019 <- dat_tt_one_2019 %>%
+  select(Median_Travel, rucc_categorical, weighted_median_income_county_pop) %>%
+  melt(id = c("Median_Travel", "rucc_categorical")) %>%
+  mutate(year = 2019)
+
+rucc_weights <- rbind(rucc_weights_2011, rucc_weights_2019)
+
+summary(lm(Median_Travel ~ rucc_categorical*as.factor(year), 
+   weights = value,
+   data = rucc_weights))
+
+# Census Region
+census_weights_2011 <- dat_tt_one_2011 %>%
+  select(Median_Travel, Census_Region, weighted_census_county_pop) %>%
+  melt(id = c("Median_Travel", "Census_Region")) %>%
+  mutate(year = 2011)
+
+census_weights_2019 <- dat_tt_one_2019 %>%
+  select(Median_Travel, Census_Region, weighted_census_county_pop) %>%
+  melt(id = c("Median_Travel", "Census_Region")) %>%
+  mutate(year = 2019)
+
+census_weights <- rbind(census_weights_2011, census_weights_2019)
+
+summary(lm(Median_Travel ~ Census_Region*as.factor(year), 
+   weights = value,
+   data = census_weights))
+
+```
+
+# Animated GIF Map
+```{r}
+#counties <- st_as_sf(map("county", plot = FALSE, fill = TRUE))
+
+counties <- get_urbn_map(map = "counties")
+states_polygon <- get_urbn_map(map = "states")
+obesity_all$fips_merge <- as.character(obesity_all$FIPS)
+obesity_all$fips_merge <- str_pad(obesity_all$fips_merge, 5, pad = "0")
+counties_with_data <- left_join(obesity_all, counties, by = c("fips_merge" = "county_fips"))
+
+counties_with_data %<>%
+  mutate(obesity_categories = case_when(
+    X..Obese < 20 ~ "Under 20%",
+    X..Obese >= 20 & X..Obese < 25 ~ "20% - 25%",
+    X..Obese >= 25 & X..Obese < 30 ~ "25% - 30%",
+    X..Obese >= 30 & X..Obese < 35 ~ "30% - 35%",
+    X..Obese >= 35 ~ "Above 35%"))
+
+counties_with_data$obesity_categories <- factor(counties_with_data$obesity_categories, 
+                                                levels = c("Under 20%", "20% - 25%", "25% - 30%", "30% - 35%", "Above 35%"))
+
+diplomates_merged <- diplomates_new %>%
+  mutate(Year = case_when(
+    Year <= 2011 ~ 2011,
+    TRUE ~ Year))
+
+hospitals_all <- rbind(hospitals_2011, hospitals_2012, hospitals_2013, hospitals_2014, hospitals_2015, hospitals_2016, hospitals_2017, hospitals_2018, hospitals_2019)
+
+hospitals_all %<>%
+  mutate(hospital_new = gsub("\\s+", " ", Hospital)) %>%
+  select(Hospital, hospital_new, lon, lat)
+
+hospital_map_2011 <- diplomates_merged %>%
+  filter(Year == 2011) %>%
+  inner_join(hospitals_all, by = c("Hospital" = "hospital_new")) %>%
+  distinct(Hospital, .keep_all = TRUE)
+
+hospital_map_2012 <- diplomates_merged %>%
+  filter(Year == 2012) %>%
+  inner_join(hospitals_all, by = c("Hospital" = "hospital_new")) %>%
+  distinct(Hospital, .keep_all = TRUE)
+
+hospital_map_2013 <- diplomates_merged %>%
+  filter(Year == 2013) %>%
+  inner_join(hospitals_all, by = c("Hospital" = "hospital_new")) %>%
+  distinct(Hospital, .keep_all = TRUE)
+
+hospital_map_2014 <- diplomates_merged %>%
+  filter(Year == 2014) %>%
+  inner_join(hospitals_all, by = c("Hospital" = "hospital_new")) %>%
+  distinct(Hospital, .keep_all = TRUE)
+
+hospital_map_2015 <- diplomates_merged %>%
+  filter(Year == 2015) %>%
+  inner_join(hospitals_all, by = c("Hospital" = "hospital_new")) %>%
+  distinct(Hospital, .keep_all = TRUE)
+
+hospital_map_2016 <- diplomates_merged %>%
+  filter(Year == 2016) %>%
+  inner_join(hospitals_all, by = c("Hospital" = "hospital_new")) %>%
+  distinct(Hospital, .keep_all = TRUE)
+
+hospital_map_2017 <- diplomates_merged %>%
+  filter(Year == 2017) %>%
+  inner_join(hospitals_all, by = c("Hospital" = "hospital_new")) %>%
+  distinct(Hospital, .keep_all = TRUE)
+
+hospital_map_2018 <- diplomates_merged %>%
+  filter(Year == 2018) %>%
+  inner_join(hospitals_all, by = c("Hospital" = "hospital_new")) %>%
+  distinct(Hospital, .keep_all = TRUE)
+
+hospital_map_2019 <- diplomates_merged %>%
+  filter(Year == 2019) %>%
+  inner_join(hospitals_all, by = c("Hospital" = "hospital_new")) %>%
+  distinct(Hospital, .keep_all = TRUE)
+
+## Running it all in one block of code to save space
+#setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+plot_2011 <- counties_with_data %>%
+#plot_2012 <- counties_with_data %>%
+#plot_2013 <- counties_with_data %>%
+#plot_2014 <- counties_with_data %>%
+#plot_2015 <- counties_with_data %>%
+#plot_2016 <- counties_with_data %>%
+#plot_2017 <- counties_with_data %>%
+#plot_2018 <- counties_with_data %>%
+#plot_2019 <- counties_with_data %>%
+  filter(Year == 2011 & state_abbv != "AK" & state_abbv !=  "HI") %>%
+  #filter(Year == 2012 & state_abbv != "AK" & state_abbv !=  "HI") %>%
+  #filter(Year == 2013 & state_abbv != "AK" & state_abbv !=  "HI") %>%
+  #filter(Year == 2014 & state_abbv != "AK" & state_abbv !=  "HI") %>%
+  #filter(Year == 2015 & state_abbv != "AK" & state_abbv !=  "HI") %>%
+  #filter(Year == 2016 & state_abbv != "AK" & state_abbv !=  "HI") %>%
+  #filter(Year == 2017 & state_abbv != "AK" & state_abbv !=  "HI") %>%
+  #filter(Year == 2018 & state_abbv != "AK" & state_abbv !=  "HI") %>%
+  #filter(Year == 2019 & state_abbv != "AK" & state_abbv !=  "HI") %>%
+  ggplot() + 
+  geom_polygon(aes(x = long, 
+                   y = lat, 
+                   group = group,
+                   fill = obesity_categories), 
+               color = "black", 
+               size = 0.05) +
+  scale_fill_manual(name = "Obesity Categories",
+                    values = c("#e2f1fc", "#8cc7f4", "#0091ea", "#004399", "#012656")) + 
+  geom_polygon(data = filter(states_polygon,
+                             state_abbv != "AK" &
+                               state_abbv != "HI"),
+               aes(x = long, 
+                   y = lat, 
+                   group = group), 
+               fill = NA, 
+               color = "black", 
+               size = 0.25) + 
+  coord_map(projection = "bonne", lat0 = 50) +
+  geom_point(data = filter(hospital_map_2011,
+  #geom_point(data = filter(hospital_map_2012,
+  #geom_point(data = filter(hospital_map_2013,
+  #geom_point(data = filter(hospital_map_2014,
+  #geom_point(data = filter(hospital_map_2015,
+  #geom_point(data = filter(hospital_map_2016,
+  #geom_point(data = filter(hospital_map_2017,
+  #geom_point(data = filter(hospital_map_2018,
+  #geom_point(data = filter(hospital_map_2019,
+                           lon > -130 & 
+                             lon < -70 & 
+                             lat > 0 &
+                             Hospital != "Loyola Medicine Maywood Illinois"), 
+             aes(x = lon, 
+                 y = lat,
+                 size = cumulative_diplomates_recalculated),
+             fill = "#ffad4a",
+             color = "black",
+             pch = 21) +
+  theme_map() +
+  scale_size(name = "Number of Adult Obesity Diplomates",
+             limits = c(1, 25)) +
+  #theme(legend.position = "none") +
+  #labs(title = "Obesity Prevalence and Diplomate Locations: 2011")
+  #labs(title = "Obesity Prevalence and Diplomate Locations: 2012")
+  #labs(title = "Obesity Prevalence and Diplomate Locations: 2013")
+  #labs(title = "Obesity Prevalence and Diplomate Locations: 2014")
+  labs(title = "Obesity Prevalence and Diplomate Locations: 2015")
+  #labs(title = "Obesity Prevalence and Diplomate Locations: 2016")
+  #labs(title = "Obesity Prevalence and Diplomate Locations: 2017")
+  #labs(title = "Obesity Prevalence and Diplomate Locations: 2018")
+  #labs(title = "Obesity Prevalence and Diplomate Locations: 2019")
+#ggsave("210318_obesityprevalence_diplomates_map_2011.tiff", width = 7.25, height = 4.51, bg = "transparent")
+#ggsave("210318_obesityprevalence_diplomates_map_2012.tiff", width = 7.25, height = 4.51, bg = "transparent")
+#ggsave("210318_obesityprevalence_diplomates_map_2013.tiff", width = 7.25, height = 4.51, bg = "transparent")
+#ggsave("210318_obesityprevalence_diplomates_map_2014.tiff", width = 7.25, height = 4.51, bg = "transparent")
+#ggsave("210318_obesityprevalence_diplomates_map_2015.tiff", width = 7.25, height = 4.51, bg = "transparent")
+#ggsave("210318_obesityprevalence_diplomates_map_2016.tiff", width = 7.25, height = 4.51, bg = "transparent")
+#ggsave("210318_obesityprevalence_diplomates_map_2017.tiff", width = 7.25, height = 4.51, bg = "transparent")
+#ggsave("210318_obesityprevalence_diplomates_map_2018.tiff", width = 7.25, height = 4.51, bg = "transparent")
+#ggsave("210318_obesityprevalence_diplomates_map_2019.tiff", width = 7.25, height = 4.51, bg = "transparent")
+
+legend <- get_legend(plot)
+grid.newpage()
+grid.draw(legend)
+
+```
+
+# Rerun Population Estimates Based on Number with Obesity
+```{r}
+setwd("/Users/cpollack/Documents/Dartmouth/Research/Obesity Certification/Data")
+nj_weights <- read.csv("210405_nj_weights.csv")
+
+brfss_2011 <- haven::read_xpt("LLCP2011.XPT")
+brfss_2019 <- haven::read_xpt("LLCP2019.XPT ")
+
+brfss_2019 %<>%
+  mutate(bmi_decimal = `_BMI5`/100,
+         bmi_categories = as.factor(`_BMI5CAT`),
+         age_categories = case_when(
+           `_AGEG5YR` <= 9 ~ "adult",
+           `_AGEG5YR` >= 10 & `_AGEG5YR` < 14  ~ "geriatric"),
+         ethnicity_categories = case_when(
+           `_RACE` <= 7 ~ "non_hispanic",
+           `_RACE` == 8 ~ "hispanic"),
+         education_categories = case_when(
+             EDUCA <= 3 ~ "less_than_hs",
+             EDUCA == 4 ~ "hs_graduate",
+             EDUCA == 5 ~ "some_college",
+             EDUCA == 6 ~ "college_grad_plus"
+           ))
+brfss_2019_design <- svydesign(id = ~1,
+                               strata = ~`_STSTR`,
+                               weights = ~`_LLCPWT`,
+                               data = brfss_2019)
+
+# Missing NJ?
+
+prop.table(svytable(~bmi_categories, 
+         design = brfss_2019_design)) #31.4%
+
+# Total Pop with Obesity
+(as.numeric(svytable(~bmi_categories, design = brfss_2019_design)[4]) + 1490335)/1000000 #1490335 from NJ BRFSS Estimate
+
+total_state_weights_nonj <- as.data.frame(prop.table(svytable(~bmi_categories + `_STATE`,
+                                           design = brfss_2019_design),
+                                           margin = 2)) %>% 
+  filter(bmi_categories == 4)
+
+total_state_weights_nonj$X_STATE <- as.numeric(as.character(total_state_weights_nonj$X_STATE ))
+total_state_weights <- rbind(total_state_weights_nonj, c(4, 34, filter(nj_weights, metric == "overall_prevalence_obesity")$estimate))
+
+# Obesity Population by Sex (1 is Male, 2 is Female)
+#svytable(~bmi_categories + `_SEX`, design = brfss_2019_design)/1000000
+#prop.table(svytable(~bmi_categories + `_SEX`, design = brfss_2019_design), margin = 1) * 100
+
+men_state_weights_nonj <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_SEX`, 
+                                                              design = brfss_2019_design), 
+                                                     margin = c(3,2))), 
+                                 X_SEX == 1 &
+                                   bmi_categories == 4)
+
+men_state_weights_nonj$X_STATE <- as.numeric(as.character(men_state_weights_nonj$X_STATE ))
+men_state_weights <- rbind(men_state_weights_nonj, c(4, 34, 1, filter(nj_weights, metric == "men_prevalence_obesity")$estimate))
+
+women_state_weights_nonj <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_SEX`, 
+                                                              design = brfss_2019_design), 
+                                                     margin = c(3,2))), 
+                              X_SEX == 2 & 
+                                bmi_categories == 4)
+women_state_weights_nonj$X_STATE <- as.numeric(as.character(women_state_weights_nonj$X_STATE ))
+women_state_weights <- rbind(women_state_weights_nonj, c(4, 34, 2, filter(nj_weights, metric == "women_prevalence_obesity")$estimate))
+
+# Obesity Population by Age
+#svytable(~bmi_categories + age_categories, design = brfss_2019_design)/1000000
+#prop.table(svytable(~bmi_categories + age_categories, design = brfss_2019_design), margin = 1) * 100
+
+adult_state_weights_nonj <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + age_categories, 
+                                                              design = brfss_2019_design), 
+                                                     margin = c(3,2))), 
+                              age_categories == "adult" & 
+                                bmi_categories == 4)
+adult_state_weights_nonj$X_STATE <- as.numeric(as.character(adult_state_weights_nonj$X_STATE ))
+adult_state_weights <- rbind(adult_state_weights_nonj, c(4, 34, "adult", filter(nj_weights, metric == "adult_prevalence_obesity")$estimate))
+
+
+geriatric_state_weights_nonj <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + age_categories, 
+                                                              design = brfss_2019_design), 
+                                                     margin = c(3,2))),
+                                  age_categories == "geriatric" &
+                                    bmi_categories == 4)
+
+geriatric_state_weights_nonj$X_STATE <- as.numeric(as.character(geriatric_state_weights_nonj$X_STATE ))
+geriatric_state_weights <- rbind(geriatric_state_weights_nonj, c(4, 34, "geriatric", filter(nj_weights, metric == "geriatric_prevalence_obesity")$estimate))
+
+# Obesity Population by Race (1 White, 2 Black, 3 AIAN, 4 Asian, 5 NHPI, 6 Other, 7 No Preferred Race)
+#svytable(~bmi_categories + `_PRACE1`, design = brfss_2019_design)/1000000
+#prop.table(svytable(~bmi_categories + `_PRACE1`, design = brfss_2019_design), margin = 1) * 100
+
+white_state_weights_nonj <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE1`, 
+                                                              design = brfss_2019_design), 
+                                                       margin = c(3,2))),
+                              X_PRACE1 == 1 &
+                                bmi_categories == 4)
+
+white_state_weights_nonj$X_STATE <- as.numeric(as.character(white_state_weights_nonj$X_STATE ))
+white_state_weights <- rbind(white_state_weights_nonj, c(4, 34, 1, filter(nj_weights, metric == "white_prevalence_obesity")$estimate))
+
+black_state_weights_nonj <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE1`, 
+                                                              design = brfss_2019_design), 
+                                                     margin = c(3,2))),
+                              X_PRACE1 == 2 &
+                                bmi_categories == 4)
+black_state_weights_nonj$X_STATE <- as.numeric(as.character(black_state_weights_nonj$X_STATE ))
+black_state_weights <- rbind(black_state_weights_nonj, c(4, 34, 2, filter(nj_weights, metric == "black_prevalence_obesity")$estimate))
+
+aian_state_weights_nonj <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE1`, 
+                                                              design = brfss_2019_design), 
+                                                     margin = c(3,2))),
+                             X_PRACE1 == 3 &
+                               bmi_categories == 4)
+aian_state_weights_nonj$X_STATE <- as.numeric(as.character(aian_state_weights_nonj$X_STATE ))
+aian_state_weights <- rbind(aian_state_weights_nonj, c(4, 34, 3, filter(nj_weights, metric == "aian_prevalence_obesity")$estimate))
+
+## Commenting those that didn't have as clear of an interpolation
+#asian_state_weights <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE1`, 
+#                                                              design = brfss_2019_design), 
+#                                                     margin = 2)),
+#                              X_PRACE1 == 4 &
+#                                bmi_categories == 4)$Freq
+
+#nhpi_state_weights <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE1`, 
+#                                                              design = brfss_2019_design), 
+#                                                     margin = 2)),
+#                             X_PRACE1 == 5 &
+#                               bmi_categories == 4)$Freq
+
+#other_state_weights <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE1`, 
+#                                                              design = brfss_2019_design), 
+#                                                     margin = 2)),
+#3                              X_PRACE1 == 6 &
+#                                bmi_categories == 4)$Freq
+
+# Obesity Population by Ethnicity
+#svytable(~bmi_categories + ethnicity_categories, design = brfss_2019_design)/1000000
+#prop.table(svytable(~bmi_categories + ethnicity_categories, design = brfss_2019_design), margin = 1) * 100
+
+non_hispanic_state_weights_nonj <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + ethnicity_categories, 
+                                                              design = brfss_2019_design), 
+                                                     margin = c(3,2))), 
+                                     ethnicity_categories == "non_hispanic" &
+                                       bmi_categories == 4)
+non_hispanic_state_weights_nonj$X_STATE <- as.numeric(as.character(non_hispanic_state_weights_nonj$X_STATE ))
+non_hispanic_state_weights <- rbind(non_hispanic_state_weights_nonj, c(4, 34, "non_hispanic", filter(nj_weights, metric == "nonhispanic_prevalence_obesity")$estimate))
+
+## Commenting the ones that couldn't be interpolated 
+#hispanic_state_weights <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + ethnicity_categories, 
+#                                                              design = brfss_2019_design), 
+#                                                     margin = 2)), 
+#                                     ethnicity_categories == "hispanic" &
+#                                       bmi_categories == 4)$Freq
+
+# Obesity Population by Education
+#svytable(~bmi_categories + education_categories, design = brfss_2019_design)/1000000
+#prop.table(svytable(~bmi_categories + education_categories, design = brfss_2019_design), margin = 1) * 100
+
+## Commenting because it couldn't be interpolated
+#under_hs_state_weights <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + education_categories, 
+#                                                              design = brfss_2019_design), 
+#                                                     margin = 2)),
+#                                 education_categories == "less_than_hs" & 
+#                                   bmi_categories == 4)$Freq
+
+hs_grad_state_weights_nonj <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + education_categories, 
+                                                              design = brfss_2019_design), 
+                                                     margin = c(3,2))),
+                                 education_categories == "hs_graduate" & 
+                                   bmi_categories == 4)
+hs_grad_state_weights_nonj$X_STATE <- as.numeric(as.character(hs_grad_state_weights_nonj$X_STATE ))
+hs_grad_state_weights <- rbind(hs_grad_state_weights_nonj, c(4, 34, "hs_graduate", filter(nj_weights, metric == "hs_grad_prevalence_obesity")$estimate))
+
+## Commeting because it couldn't be interpolated
+#some_college_state_weights <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + education_categories, 
+#                                                              design = brfss_2019_design), 
+#                                                     margin = 2)),
+#                                 education_categories == "some_college" & 
+#                                   bmi_categories == 4)$Freq
+
+college_plus_state_weights_nonj <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + education_categories, 
+                                                              design = brfss_2019_design), 
+                                                     margin = c(3,2))),
+                                 education_categories == "college_grad_plus" & 
+                                   bmi_categories == 4)
+
+college_plus_state_weights_nonj$X_STATE <- as.numeric(as.character(college_plus_state_weights_nonj$X_STATE ))
+college_plus_state_weights <- rbind(college_plus_state_weights_nonj, c(4, 34, "college_grad_plus", filter(nj_weights, metric == "college_grad_prevalence_obesity")$estimate))
+
+# Estimate Travel Times Based on New Prevalence
+weighted_state_prevalence_total <- as.data.frame(cbind(total_state_weights$`X_STATE`, total_state_weights$Freq, men_state_weights$Freq, women_state_weights$Freq, adult_state_weights$Freq, geriatric_state_weights$Freq, white_state_weights$Freq, black_state_weights$Freq, aian_state_weights$Freq, non_hispanic_state_weights$Freq, hs_grad_state_weights$Freq, college_plus_state_weights$Freq))
+colnames(weighted_state_prevalence_total) <- c("STATEFP", "total_state_weights", "men_state_weights", "women_state_weights", "adult_state_weights", "geriatric_state_weights", "white_state_weights", "black_state_weights", "aian_state_weights", "non_hispanic_state_weights", "hs_grad_state_weights", "college_plus_state_weights")
+weighted_state_prevalence_total[2:12] <- sapply(weighted_state_prevalence_total[2:12],as.numeric)
+
+brfss_2019_population_weights <- dat_tt_one_2019 %>%
+  left_join(., weighted_state_prevalence_total, by = c("STATEFP")) %>%
+  mutate(weighted_total_pop_brfss = weighted_total_pop * total_state_weights,
+         weighted_total_male_pop_brfss = weighted_total_male * men_state_weights,
+         weighted_total_female_pop_brfss = weighted_total_female * women_state_weights,
+         weighted_total_adult_pop_brfss = weighted_adult * adult_state_weights,
+         weighted_total_geriatric_pop_brfss = weighted_geriatric * geriatric_state_weights,
+         weighted_total_white_pop_brfss = weighted_white * white_state_weights,
+         weighted_total_black_pop_brfss = weighted_black * black_state_weights,
+         weighted_total_americanindian_pop_brfss = weighted_americanindian * aian_state_weights,
+         #weighted_total_asian_pop_brfss = weighted_asian * asian_state_weights,
+         #weighted_total_nativehawaiian_pop_brfss = weighted_nativehawaiian * nhpi_state_weights,
+         #weighted_total_someotherrace_pop_brfss = weighted_someotherrace * other_state_weights,
+         weighted_total_nothispanic_pop_brfss = weighted_nothispanic * non_hispanic_state_weights,
+         #weighted_total_hispanic_pop_brfss = weighted_hispanicorlatino * hispanic_state_weights,
+         #weighted_total_under_hs_pop_brfss = weighted_under_hs * under_hs_state_weights,
+         weighted_total_hs_grad_pop_brfss = weighted_hs_grad * hs_grad_state_weights,
+         #weighted_total_some_college_pop_brfss = weighted_some_college * some_college_state_weights,
+         weighted_total_college_plus_pop_brfss = (weighted_bachelors_degree + weighted_above_college)  * college_plus_state_weights) %>%
+  select(STATEFP, Median_Travel, total_pop, weighted_total_pop, total_state_weights, weighted_total_pop_brfss, weighted_total_male_pop_brfss, weighted_total_female_pop_brfss, weighted_total_adult_pop_brfss, weighted_total_geriatric_pop_brfss, weighted_total_white_pop_brfss, weighted_total_black_pop_brfss, weighted_total_americanindian_pop_brfss, weighted_total_nothispanic_pop_brfss, weighted_total_hs_grad_pop_brfss, weighted_total_college_plus_pop_brfss)
+
+sapply(colnames(brfss_2019_population_weights)[6:16], function(x) {
+  print(x)
+  brfss_2019_population_weights %>%
+  ungroup() %>%
+  summarise(weighted.quantile(Median_Travel, w = get(x))
+            )})
+
+# Sex
+wtd.t.test(brfss_2019_population_weights$Median_Travel, 
+           brfss_2019_population_weights$Median_Travel, 
+           weight= brfss_2019_population_weights$weighted_total_male_pop_brfss, 
+           weighty = brfss_2019_population_weights$weighted_total_female_pop_brfss) #p = 0.52
+# Age
+wtd.t.test(brfss_2019_population_weights$Median_Travel, 
+           brfss_2019_population_weights$Median_Travel, 
+           weight= brfss_2019_population_weights$weighted_total_adult_pop_brfss, 
+           weighty = brfss_2019_population_weights$weighted_total_geriatric_pop_brfss) #p = 0.14
+
+#Race
+race_weights <- brfss_2019_population_weights %>%
+  select(Median_Travel, weighted_total_white_pop_brfss, weighted_total_black_pop_brfss, weighted_total_americanindian_pop_brfss) %>%
+  melt(id = "Median_Travel")
+summary(lm(Median_Travel ~ variable, 
+   weights = value,
+   data = race_weights))
+
+
+# Education
+wtd.t.test(brfss_2019_population_weights$Median_Travel, 
+           brfss_2019_population_weights$Median_Travel, 
+           weight= brfss_2019_population_weights$weighted_total_hs_grad_pop_brfss, 
+           weighty = brfss_2019_population_weights$weighted_total_college_plus_pop_brfss) #p = < 0.001
+
+summary(dat_tt_one_2011$medianhouseholdincome)
+
+#Income
+dat_tt_one_2019 %<>%
+  ungroup() %>%
+  group_by(medianhouseholdincome_quartile) %>%
+  mutate(total_pop_obese = total_pop*(X..Obese/100),
+         total_pop_quartile_obese = sum(total_pop_obese)) %>% 
+  ungroup() %>%
+  mutate(weighted_median_income_county_pop_obese = total_pop_obese/total_pop_quartile)
+
+for (quartile in unique(dat_tt_one_2019$medianhouseholdincome_quartile)) {
+  print(quartile)
+  dat_tt_one_2019 %>%
+    ungroup %>%
+    filter(medianhouseholdincome_quartile == quartile) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_median_income_county_pop_obese)) %>%
+    print(.)
+}
+
+summary(lm(Median_Travel ~ medianhouseholdincome_quartile, 
+   weights = weighted_median_income_county_pop_obese,
+   data = dat_tt_one_2019))
+
+
+#Rurality
+
+dat_tt_one_2019 %<>%
+  ungroup() %>%
+  group_by(rucc_categorical) %>%
+  mutate(total_pop_rucc_obese = sum(total_pop_obese)) %>% 
+  ungroup() %>%
+  mutate(weighted_rucc_county_pop_obese = total_pop_obese/total_pop_rucc_obese)
+
+for (rucc in unique(dat_tt_one_2019$rucc_categorical)) {
+  print(rucc)
+  dat_tt_one_2019 %>%
+    ungroup %>%
+    filter(rucc_categorical == rucc) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_rucc_county_pop_obese)) %>%
+    print(.)
+}
+
+summary(lm(Median_Travel ~ rucc_categorical, 
+   weights = weighted_rucc_county_pop_obese,
+   data = dat_tt_one_2019))
+
+#Census Region
+
+dat_tt_one_2019 %<>%
+  ungroup() %>%
+  group_by(Census_Region) %>%
+  mutate(total_pop_census_obese = sum(total_pop_obese)) %>% 
+  ungroup() %>%
+  mutate(weighted_census_county_pop_obese = total_pop_obese/total_pop_census_obese)
+
+for (census in unique(dat_tt_one_2019$Census_Region)) {
+  print(census)
+  dat_tt_one_2019 %>%
+    ungroup %>%
+    filter(Census_Region == census) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_census_county_pop_obese)) %>%
+    print(.)
+}
+
+summary(lm(Median_Travel ~ Census_Region, 
+   weights = weighted_census_county_pop_obese,
+   data = dat_tt_one_2019))
+
+sum(dat_tt_one_2019$total_pop_obese)/1000000
+
+dat_tt_one_2011 %>%
+  ungroup() %>%
+  group_by(medianhouseholdincome_quartile) %>%
+  summarise(total_pop_quartile = sum(total_pop)/1000000,
+            total_pop_quartile_percent = sum(total_pop)/1000000/306.603772 * 100)
+
+```
+
+# Repeat above but with 2011 data
+```{r}
+brfss_2011 %<>%
+  mutate(bmi_decimal = `_BMI5`/100,
+         bmi_categories = as.factor(`_BMI5CAT`),
+         age_categories = case_when(
+           `_AGEG5YR` <= 9 ~ "adult",
+           `_AGEG5YR` >= 10 & `_AGEG5YR` < 14  ~ "geriatric"),
+         ethnicity_categories = case_when(
+           HISPANC2 == 1 ~ "hispanic",
+           HISPANC2 == 2 ~ "non_hispanic"),
+         education_categories = case_when(
+             EDUCA <= 3 ~ "less_than_hs",
+             EDUCA == 4 ~ "hs_graduate",
+             EDUCA == 5 ~ "some_college",
+             EDUCA == 6 ~ "college_grad_plus"
+           ))
+brfss_2011_design <- svydesign(id = ~1,
+                               strata = ~`_STSTR`,
+                               weights = ~`_LLCPWT`,
+                               data = brfss_2011)
+
+# Missing NJ?
+
+prop.table(svytable(~bmi_categories, 
+         design = brfss_2011_design)) #27.4%
+
+# Total Pop with Obesity
+total_state_weights_2011 <- as.data.frame(prop.table(svytable(~bmi_categories + `_STATE`,
+                                           design = brfss_2011_design),
+                                           margin = 2)) %>% 
+  filter(bmi_categories == 4) %>%
+  select(Freq)
+colnames(total_state_weights_2011) <- "total_state_weights_2011"
+
+# Obesity Population by Sex (1 is Male, 2 is Female)
+#svytable(~bmi_categories + `_SEX`, design = brfss_2019_design)/1000000
+#prop.table(svytable(~bmi_categories + `_SEX`, design = brfss_2019_design), margin = 1) * 100
+
+men_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + SEX, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))), 
+                                SEX == 1 &
+                                   bmi_categories == 4) %>% 
+  select(Freq)
+colnames(men_state_weights_2011) <- "total_state_weights_2011"
+
+women_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + SEX, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))), 
+                              SEX == 2 & 
+                                bmi_categories == 4) %>%
+  select(Freq)
+colnames(women_state_weights_2011) <- "women_state_weights_2011"
+
+
+# Obesity Population by Age
+
+adult_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + age_categories, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))), 
+                              age_categories == "adult" & 
+                                bmi_categories == 4) %>%
+  select(Freq)
+colnames(adult_state_weights_2011) <- "adult_state_weights_2011"
+
+
+geriatric_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + age_categories, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))),
+                                  age_categories == "geriatric" &
+                                    bmi_categories == 4) %>%
+  select(Freq)
+
+colnames(geriatric_state_weights_2011) <- "geriatric_state_weights_2011"
+
+# Obesity Population by Race (1 White, 2 Black, 3 Asian, 4 NHPI, 5 AIAN, 6 Other, 7 No Preferred Race)
+white_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE`, 
+                                                              design = brfss_2011_design), 
+                                                       margin = c(3,2))),
+                              X_PRACE == 1 &
+                                bmi_categories == 4) %>%
+  select(Freq)
+
+colnames(white_state_weights_2011) <- "white_state_weights_2011"
+
+black_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE`, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))),
+                              X_PRACE == 2 &
+                                bmi_categories == 4) %>%
+  select(Freq)
+colnames(black_state_weights_2011) <- "black_state_weights_2011"
+
+aian_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE`, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))),
+                             X_PRACE == 5 &
+                               bmi_categories == 4) %>%
+  select(Freq)
+colnames(aian_state_weights_2011) <- "aian_state_weights_2011"
+
+## Commenting those that didn't have as clear of an interpolation
+asian_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE`, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))),
+                             X_PRACE == 3 &
+                               bmi_categories == 4) %>%
+  select(Freq)
+colnames(asian_state_weights_2011) <- "asian_state_weights_2011"
+
+nhpi_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE`, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))),
+                             X_PRACE == 4 &
+                               bmi_categories == 4) %>%
+  select(Freq)
+colnames(nhpi_state_weights_2011) <- "nhpi_state_weights_2011"
+
+other_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + `_PRACE`, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))),
+                             X_PRACE == 6 &
+                               bmi_categories == 4) %>%
+  select(Freq)
+colnames(other_state_weights_2011) <- "other_state_weights_2011"
+
+# Obesity Population by Ethnicity
+non_hispanic_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + ethnicity_categories, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))), 
+                                     ethnicity_categories == "non_hispanic" &
+                                       bmi_categories == 4) %>%
+  select(Freq)
+colnames(non_hispanic_state_weights_2011) <- "non_hispanic_state_weights_2011"
+
+## Commenting the ones that couldn't be interpolated 
+hispanic_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + ethnicity_categories, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))), 
+                                     ethnicity_categories == "hispanic" &
+                                       bmi_categories == 4) %>%
+  select(Freq)
+colnames(hispanic_state_weights_2011) <- "hispanic_state_weights_2011"
+
+# Obesity Population by Education
+#svytable(~bmi_categories + education_categories, design = brfss_2019_design)/1000000
+#prop.table(svytable(~bmi_categories + education_categories, design = brfss_2019_design), margin = 1) * 100
+
+## Commenting because it couldn't be interpolated
+under_hs_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + education_categories, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))),
+                                 education_categories == "less_than_hs" & 
+                                   bmi_categories == 4) %>%
+  select(Freq)
+colnames(under_hs_state_weights_2011) <- "under_hs_state_weights_2011"
+
+hs_grad_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + education_categories, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))),
+                                 education_categories == "hs_graduate" & 
+                                   bmi_categories == 4) %>%
+  select(Freq)
+colnames(hs_grad_state_weights_2011) <- "hs_grad_state_weights_2011"
+
+## Commeting because it couldn't be interpolated
+some_college_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + education_categories, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))),
+                                 education_categories == "some_college" & 
+                                   bmi_categories == 4) %>%
+  select(Freq)
+colnames(some_college_state_weights_2011) <- "some_college_state_weights_2011"
+
+college_grad_plus_state_weights_2011 <- filter(as.data.frame(prop.table(svytable(~bmi_categories + `_STATE` + education_categories, 
+                                                              design = brfss_2011_design), 
+                                                     margin = c(3,2))),
+                                 education_categories == "college_grad_plus" & 
+                                   bmi_categories == 4) %>%
+  select(Freq)
+colnames(college_grad_plus_state_weights_2011) <- "college_grad_plus_state_weights_2011"
+
+# Estimate Travel Times Based on New Prevalence
+weighted_state_prevalence_total_2011 <- as.data.frame(cbind(levels(as.factor(brfss_2011$`_STATE`)), total_state_weights_2011, men_state_weights_2011, women_state_weights_2011, adult_state_weights_2011, geriatric_state_weights_2011, white_state_weights_2011, black_state_weights_2011, aian_state_weights_2011, asian_state_weights_2011, nhpi_state_weights_2011, other_state_weights_2011, non_hispanic_state_weights_2011, hispanic_state_weights_2011, under_hs_state_weights_2011, hs_grad_state_weights_2011, some_college_state_weights_2011, college_grad_plus_state_weights_2011))
+
+colnames(weighted_state_prevalence_total_2011) <- c("STATEFP", "total_state_weights_2011", "men_state_weights_2011", "women_state_weights_2011", "adult_state_weights_2011", "geriatric_state_weights_2011", "white_state_weights_2011", "black_state_weights_2011", "aian_state_weights_2011", "asian_state_weights_2011", "nhpi_state_weights_2011", "other_state_weights_2011", "non_hispanic_state_weights_2011", "hispanic_state_weights_2011", "under_hs_state_weights_2011", "hs_grad_state_weights_2011", "some_college_state_weights_2011", "college_grad_plus_state_weights_2011")
+
+brfss_2011_population_weights <- dat_tt_one_2011 %>%
+  left_join(., weighted_state_prevalence_total_2011, by = c("STATEFP")) %>%
+  mutate(weighted_total_pop_brfss = weighted_total_pop * total_state_weights_2011,
+         weighted_total_male_pop_brfss = weighted_total_male * men_state_weights_2011,
+         weighted_total_female_pop_brfss = weighted_total_female * women_state_weights_2011,
+         weighted_total_adult_pop_brfss = weighted_adult * adult_state_weights_2011,
+         weighted_total_geriatric_pop_brfss = weighted_geriatric * geriatric_state_weights_2011,
+         weighted_total_white_pop_brfss = weighted_white * white_state_weights_2011,
+         weighted_total_black_pop_brfss = weighted_black * black_state_weights_2011,
+         weighted_total_americanindian_pop_brfss = weighted_americanindian * aian_state_weights_2011,
+         weighted_total_asian_pop_brfss = weighted_asian * asian_state_weights_2011,
+         weighted_total_nativehawaiian_pop_brfss = weighted_nativehawaiian * nhpi_state_weights_2011,
+         weighted_total_someotherrace_pop_brfss = weighted_someotherrace * other_state_weights_2011,
+         weighted_total_nothispanic_pop_brfss = weighted_nothispanic * non_hispanic_state_weights_2011,
+         weighted_total_hispanic_pop_brfss = weighted_hispanicorlatino * hispanic_state_weights_2011,
+         weighted_total_under_hs_pop_brfss = weighted_under_hs * under_hs_state_weights_2011,
+         weighted_total_hs_grad_pop_brfss = weighted_hs_grad * hs_grad_state_weights_2011,
+         weighted_total_some_college_pop_brfss = weighted_some_college * some_college_state_weights_2011,
+         weighted_total_college_plus_pop_brfss = (weighted_bachelors_degree + weighted_above_college)  * college_grad_plus_state_weights_2011) %>%
+  select(STATEFP, Median_Travel, total_pop, weighted_total_pop_brfss, weighted_total_male_pop_brfss, weighted_total_female_pop_brfss, weighted_total_adult_pop_brfss, weighted_total_geriatric_pop_brfss, weighted_total_white_pop_brfss, weighted_total_black_pop_brfss, weighted_total_americanindian_pop_brfss, weighted_total_asian_pop_brfss, weighted_total_nativehawaiian_pop_brfss, weighted_total_someotherrace_pop_brfss, weighted_total_nothispanic_pop_brfss, weighted_total_hispanic_pop_brfss, weighted_total_under_hs_pop_brfss, weighted_total_hs_grad_pop_brfss, weighted_total_some_college_pop_brfss, weighted_total_college_plus_pop_brfss)
+
+sapply(colnames(brfss_2011_population_weights)[4:20], function(x) {
+  print(x)
+  brfss_2011_population_weights %>%
+  ungroup() %>%
+  summarise(weighted.quantile(Median_Travel, w = get(x))
+            )})
+  
+# Sex
+wtd.t.test(brfss_2011_population_weights$Median_Travel, 
+           brfss_2011_population_weights$Median_Travel, 
+           weight= brfss_2011_population_weights$weighted_total_male_pop_brfss, 
+           weighty = brfss_2011_population_weights$weighted_total_female_pop_brfss) #p = 0.72
+
+# Age
+wtd.t.test(brfss_2011_population_weights$Median_Travel, 
+           brfss_2011_population_weights$Median_Travel, 
+           weight= brfss_2011_population_weights$weighted_total_adult_pop_brfss, 
+           weighty = brfss_2011_population_weights$weighted_total_geriatric_pop_brfss) #p = 0.18
+
+# Ethnicity
+wtd.t.test(brfss_2011_population_weights$Median_Travel, 
+           brfss_2011_population_weights$Median_Travel, 
+           weight= brfss_2011_population_weights$weighted_total_nothispanic_pop_brfss, 
+           weighty = brfss_2011_population_weights$weighted_total_hispanic_pop_brfss) #p = 0.18
+
+
+#Race
+race_weights <- brfss_2011_population_weights %>%
+  select(Median_Travel, weighted_total_white_pop_brfss, weighted_total_black_pop_brfss, weighted_total_americanindian_pop_brfss, weighted_total_asian_pop_brfss, weighted_total_nativehawaiian_pop_brfss, weighted_total_someotherrace_pop_brfss) %>%
+  melt(id = "Median_Travel")
+summary(lm(Median_Travel ~ variable, 
+   weights = value,
+   data = race_weights))
+
+
+# Education
+education_weights <- brfss_2011_population_weights %>%
+  select(Median_Travel, weighted_total_under_hs_pop_brfss, weighted_total_hs_grad_pop_brfss, weighted_total_some_college_pop_brfss, weighted_total_college_plus_pop_brfss) %>%
+  melt(id = "Median_Travel")
+summary(lm(Median_Travel ~ variable, 
+   weights = value,
+   data = education_weights))
+
+#Income
+dat_tt_one_2011 %<>%
+  ungroup() %>%
+  group_by(medianhouseholdincome_quartile) %>%
+  mutate(total_pop_obese = total_pop*(X..Obese/100),
+         total_pop_quartile_obese = sum(total_pop_obese)) %>% 
+  ungroup() %>%
+  mutate(weighted_median_income_county_pop_obese = total_pop_obese/total_pop_quartile)
+
+for (quartile in unique(dat_tt_one_2011$medianhouseholdincome_quartile)) {
+  print(quartile)
+  dat_tt_one_2011 %>%
+    ungroup %>%
+    filter(medianhouseholdincome_quartile == quartile) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_median_income_county_pop_obese)) %>%
+    print(.)
+}
+
+summary(lm(Median_Travel ~ medianhouseholdincome_quartile, 
+   weights = weighted_median_income_county_pop_obese,
+   data = dat_tt_one_2011))
+
+#Rurality
+
+dat_tt_one_2011 %<>%
+  ungroup() %>%
+  group_by(rucc_categorical) %>%
+  mutate(total_pop_rucc_obese = sum(total_pop_obese)) %>% 
+  ungroup() %>%
+  mutate(weighted_rucc_county_pop_obese = total_pop_obese/total_pop_rucc_obese)
+
+for (rucc in unique(dat_tt_one_2011$rucc_categorical)) {
+  print(rucc)
+  dat_tt_one_2011 %>%
+    ungroup %>%
+    filter(rucc_categorical == rucc) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_rucc_county_pop_obese)) %>%
+    print(.)
+}
+
+summary(lm(Median_Travel ~ rucc_categorical, 
+   weights = weighted_rucc_county_pop_obese,
+   data = dat_tt_one_2011))
+
+#Census Region
+
+dat_tt_one_2011 %<>%
+  ungroup() %>%
+  group_by(Census_Region) %>%
+  mutate(total_pop_census_obese = sum(total_pop_obese)) %>% 
+  ungroup() %>%
+  mutate(weighted_census_county_pop_obese = total_pop_obese/total_pop_census_obese)
+
+for (census in unique(dat_tt_one_2011$Census_Region)) {
+  print(census)
+  dat_tt_one_2011 %>%
+    ungroup %>%
+    filter(Census_Region == census) %>%
+    summarise(weighted.quantile(Median_Travel, w = weighted_census_county_pop_obese)) %>%
+    print(.)
+}
+
+summary(lm(Median_Travel ~ Census_Region, 
+   weights = weighted_census_county_pop_obese,
+   data = dat_tt_one_2011))
+```
+
+# Re-estimating Facility Mapping with Severe Obesity
+```{r}
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+prevalence <- read.csv("210406_severeobesityprevalence.csv")
+prevalence$state <- as.character(prevalence$state)
+
+mapped_diplomates_severe <- raw_map %>%
+  filter(Year != 2019) %>%
+  left_join(., prevalence, by = c("Year" = "year", "STATEFP" = "state")) %>%
+  group_by(State, County) %>%
+  mutate(number_obese_severe = trunc(POPULATION * (prevalence_loop))) %>%
+  ungroup() %>%
+  group_by(Year, Hospital) %>%
+  mutate(mapped_tracts_severe = n(),
+         mapped_population_severe = sum(number_obese_severe))
+
+mapped_diplomates_severe$Year <- as.character(mapped_diplomates_severe$Year)
+diplomates_severe <- filter(diplomates, Year != 2019)
+
+mapped_diplomates_severe %<>%
+  left_join(., diplomates_severe, by = c("Hospital", "Year")) %>%
+  arrange(Hospital, Year) %>%
+  ungroup() %>%
+  group_by(Hospital) %>%
+  na.locf(.) %>%
+  mutate(diplomates_per_capita_severe = cumulative_diplomates/mapped_population_severe * 100000)
+
+mapped_diplomates_severe %>%
+  ungroup() %>%
+  group_by(Year) %>%
+  summarise(mean(diplomates_per_capita_severe),
+            median(diplomates_per_capita_severe))
+
+summary(filter(mapped_diplomates_severe, Year == 2011)$diplomates_per_capita_severe)
+summary(filter(mapped_diplomates_severe, Year == 2018)$diplomates_per_capita_severe)
+
+mapped_diplomates_unique_severe <- mapped_diplomates_severe %>%
+  distinct(Hospital, Year, .keep_all = TRUE) %>%
+  select(Census_Region, Hospital, Year, State, mapped_tracts_severe, mapped_population_severe, number_of_diplomates, cumulative_diplomates, diplomates_per_capita_severe)
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+mapped_diplomates_unique_severe %>%
+  filter(Year == 2011 | Year == 2018) %>%
+  ggplot(aes(x = as.factor(Year), y = log(diplomates_per_capita_severe), color = Census_Region)) +
+  geom_boxplot() +
+  theme_classic() +
+  facet_wrap(~Census_Region) +
+  labs(x = "Diplomates Per 100,000 Persons",
+       y = "Log Count",
+       title = "Log Diplomates Per 100,000 Persons with Severe Obesity by Census Region",
+       color = "Census Region") +
+  scale_color_jama()
+ggsave("210406_LogDiplomatesPerCapitaSevere_Boxplot.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+mapped_diplomates_unique_severe %>% 
+  filter(Year == 2011 | Year == 2018) %>%
+  group_by(Year, Census_Region) %>% 
+  summarise(median_dips = median(diplomates_per_capita_severe, na.rm = TRUE), 
+            iqr_dips = IQR(diplomates_per_capita_severe, na.rm = TRUE),
+            dips_25 = quantile(diplomates_per_capita_severe, probs = 0.25, na.rm = TRUE),
+            dips_75 = quantile(diplomates_per_capita_severe, probs = 0.75, na.rm = TRUE))
+
+mapped_diplomates_unique_severe$serviceable_population_year_min_severe <-  floor(mapped_diplomates_unique_severe$cumulative_diplomates * 36 * 48)
+
+mapped_diplomates_unique_severe$serviceable_population_year_max_severe <-  floor(mapped_diplomates_unique_severe$cumulative_diplomates * 72 * 48)
+
+mapped_diplomates_unique_severe$serviceable_population_week_mcclure_min_severe <-  floor(mapped_diplomates_unique_severe$cumulative_diplomates * 36)
+
+mapped_diplomates_unique_severe$serviceable_population_week_mcclure_max_severe <-  floor(mapped_diplomates_unique_severe$cumulative_diplomates * 72)
+
+mapped_diplomates_unique_severe %<>%
+  mutate(`NHLBI (2000) Min` = case_when(
+    mapped_population_severe == serviceable_population_year_min_severe/12 ~ "Met",
+    mapped_population_severe < serviceable_population_year_min_severe/12 ~ "Above",
+    mapped_population_severe >serviceable_population_year_min_severe/12 ~ "Below"),
+    `DPP (2002)` = case_when(
+      mapped_population_severe*16 == serviceable_population_week_mcclure_min_severe * 24 ~ "Met",
+      mapped_population_severe*16 < serviceable_population_week_mcclure_min_severe * 24 ~ "Above",
+      mapped_population_severe*16 > serviceable_population_week_mcclure_min_severe * 24  ~ "Below"),
+    `CMS (2008) Min` = case_when(
+      mapped_population_severe*4 == serviceable_population_week_mcclure_min_severe * 4 ~ "Met",
+      mapped_population_severe*4 < serviceable_population_week_mcclure_min_severe * 4 ~ "Above",
+      mapped_population_severe*4 > serviceable_population_week_mcclure_min_severe * 4  ~ "Below"),
+    `Wadden et al. (2011) Min` = case_when(
+      mapped_population_severe * 8 == serviceable_population_year_min_severe * 2 ~ "Met",
+      mapped_population_severe * 8 < serviceable_population_year_min_severe * 2 ~ "Above",
+      mapped_population_severe * 8 > serviceable_population_year_min_severe * 2  ~ "Below"),
+    `AHA/ACC/TOS (2014)` = case_when(
+      (mapped_population_severe*14) == serviceable_population_year_min_severe/2 ~ "Met",
+      (mapped_population_severe*14) < serviceable_population_year_min_severe/2 ~ "Above",
+      (mapped_population_severe*14) > serviceable_population_year_min_severe/2  ~ "Below"),
+    `Personal Communications` = case_when(
+      mapped_population_severe == (cumulative_diplomates*240*7.2)/2.5 ~ "Met",
+      mapped_population_severe < (cumulative_diplomates*240*7.2)/2.5 ~ "Above",
+      mapped_population_severe > (cumulative_diplomates*240*7.2)/2.5 ~ "Below"
+    ),
+    `Wadden et al. (2011) Max` = case_when(
+      mapped_population_severe * 8 == serviceable_population_year_max_severe * 2 ~ "Met",
+      mapped_population_severe * 8 < serviceable_population_year_max_severe * 2 ~ "Above",
+      mapped_population_severe * 8 > serviceable_population_year_max_severe * 2  ~ "Below"),
+    `CMS (2008) Max` = case_when(
+      mapped_population_severe*4 == serviceable_population_week_mcclure_max_severe * 4 ~ "Met",
+      mapped_population_severe*4 < serviceable_population_week_mcclure_max_severe * 4 ~ "Above",
+      mapped_population_severe*4 > serviceable_population_week_mcclure_max_severe * 4  ~ "Below"),
+    `NHLBI (2000) Max` = case_when(
+    mapped_population_severe == serviceable_population_year_max_severe/12 ~ "Met",
+    mapped_population_severe < serviceable_population_year_max_severe/12 ~ "Above",
+    mapped_population_severe >serviceable_population_year_max_severe/12 ~ "Below"))
+
+facilities_per_year_severe <- mapped_diplomates_unique_severe %>%
+  ungroup() %>%
+  group_by(Year) %>%
+  tally(.)
+
+mapped_diplomates_unique_long_severe <- mapped_diplomates_unique_severe %>%
+  select(Hospital, Year, `NHLBI (2000) Min`, `NHLBI (2000) Max`, `CMS (2008) Min`, `CMS (2008) Max`, `Wadden et al. (2011) Min`, `Wadden et al. (2011) Max`, `Personal Communications`) %>%
+  melt(id = c("Hospital", "Year")) %>%
+  left_join(., facilities_per_year_severe, by = c("Year")) %>%
+  group_by(Year, variable, value) %>%
+  mutate(count = n(),
+         percent = n()/n * 100)
+
+mapped_diplomates_unique_long_severe$value <- as.factor(mapped_diplomates_unique_long_severe$value)
+
+mapped_diplomates_unique_long_severe$value <- relevel(mapped_diplomates_unique_long_severe$value, ref = "Below")
+
+mapped_diplomates_unique_long_severe %<>%
+  mutate(variable_new = case_when(
+    variable == "NHLBI (2000) Min" | variable == "NHLBI (2000) Max" ~ "NHLBI (2000)",
+    variable == "CMS (2008) Min" | variable == "CMS (2008) Max" ~ "CMS (2008)",
+    variable == "Wadden et al. (2011) Min" | variable == "Wadden et al. (2011) Max" ~ "Wadden et al. (2011)",
+    variable == "Personal Communications" ~ "Personal Communications"))
+
+mapped_diplomates_unique_long_severe$variable_new <- factor(mapped_diplomates_unique_long_severe$variable_new, levels = c("CMS (2008)", "NHLBI (2000)", "Personal Communications", "Wadden et al. (2011)"))
+show_col(pal_npg(alpha = 0.6)(4))
+
+mapped_diplomates_unique_long_severe$variable <- factor(mapped_diplomates_unique_long_severe$variable, levels = c("NHLBI (2000) Max", "NHLBI (2000) Min","CMS (2008) Max", "CMS (2008) Min", "Wadden et al. (2011) Max", "Wadden et al. (2011) Min", "Personal Communications"))
+
+
+#E64B35FF (#E64B3599), #4DBBD5FF (#4DBBD599), #00A087FF (#00A08799), #3C5488FF (#3C548899)
+
+mapped_diplomates_unique_long_severe %>%
+  filter(value == "Above") %>%
+  distinct(Year, variable, .keep_all = TRUE) %>%
+  ggplot(aes(x = variable_new, y = percent, fill = variable)) +
+  geom_bar(stat = "identity", color = "black") +
+  facet_wrap(~Year) + 
+  theme_classic() + 
+  coord_flip() +
+  labs(x = "Guidelines",
+       y = "Percent (%)",
+       title = "Percent of Facilities that have Capacity to\nServe the Mapped Patient Population with Severe Obesity",
+       fill = element_blank()) +
+  scale_fill_manual(values = c("#E64B3599", "#E64B35FF", "#4DBBD599", "#4DBBD5FF", "#00A08799", "#00A087FF", "#3C5488FF")) +
+  theme(legend.position = "bottom", legend.box = "vertical", legend.margin = margin(), legend.justification = "left")
+  #scale_y_continuous(breaks = seq(0, 1.5, 0.5))
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("210406_Guidelines.tiff", width = 8.25, height = 4.51) #7.29 x 4.51
+
+
+View(mapped_diplomates_unique_long_severe %>%
+  group_by(variable, Year, value) %>%
+  distinct(variable, .keep_all = TRUE) %>%
+  summarise(percent))
+
+# Diabetes DPP
+mapped_diplomates_unique %>%
+  filter(Year == 2019 & `CMS (2008) Max` == "Above") %>%
+  group_by(Census_Region) %>%
+  summarise(sum(mapped_population),
+            (sum(mapped_population)*0.13 * 0.58),
+            (sum(mapped_population)*0.13) - (sum(mapped_population)*0.13 * 0.58))
+
+mapped_diplomates_unique %>%
+  ungroup() %>%
+  filter(Year == 2019) %>%
+  group_by(Census_Region) %>%
+  summarise(sum(mapped_population),
+            diabetes = (sum(mapped_population)*0.13 * 0.58)) %>%
+  ungroup() %>%
+  mutate(sum(diabetes))
+  
+
+# Look Ahead
+mapped_diplomates_unique %>%
+  filter(Year == 2019 & `CMS (2008) Max` == "Above") %>%
+  group_by(Census_Region) %>%
+  mutate(hbac1_ar = (3.52-1)/3.52,
+         diastolic_ar = (1.48-1)/1.48,
+         systolic_ar = (1.56-1)/1.56,
+         hdl_ar = (1.69 - 1)/1.69,
+         ldl_arc = (2.20-1)/2.20) %>%
+  summarise(total_pop = sum(mapped_population),
+            hba1c = (sum(mapped_population)*0.13*hbac1_ar),
+            diastolic = (sum(mapped_population)*0.13*diastolic_ar),
+            systolic = (sum(mapped_population)*0.13*systolic_ar),
+            hdl = (sum(mapped_population)*0.13*hdl_ar),
+            ldl = (sum(mapped_population)*0.13*ldl_arc),
+            ) %>%
+  distinct(.) %>%
+  ungroup() %>%
+  summarise(sum(total_pop),
+            sum(hba1c),
+            sum(diastolic),
+            sum(systolic),
+            sum(hdl),
+            sum(ldl))
+
+mapped_diplomates_unique %>%
+  filter(Year == 2019) %>%
+  group_by(Census_Region) %>%
+  mutate(hbac1_ar = (3.52-1)/3.52,
+         diastolic_ar = (1.48-1)/1.48,
+         systolic_ar = (1.56-1)/1.56,
+         hdl_ar = (1.69 - 1)/1.69,
+         ldl_arc = (2.20-1)/2.20) %>%
+  summarise(total_pop = sum(mapped_population),
+            hba1c = (sum(mapped_population)*0.13*hbac1_ar),
+            diastolic = (sum(mapped_population)*0.13*diastolic_ar),
+            systolic = (sum(mapped_population)*0.13*systolic_ar),
+            hdl = (sum(mapped_population)*0.13*hdl_ar),
+            ldl = (sum(mapped_population)*0.13*ldl_arc),
+            ) %>%
+  distinct(.) %>%
+  ungroup() %>%
+  summarise(sum(total_pop),
+            sum(hba1c),
+            sum(diastolic),
+            sum(systolic),
+            sum(hdl),
+            sum(ldl))
+```
+
+# Recalculate Binning with 2019
+```{r}
+dat_tt_one_2011_2019 <- rbind(dat_tt_one_2011, dat_tt_one_2019)
+
+dat_tt_one_2011_2019 %<>%
+  mutate(median_travel_binned = case_when(
+    Median_Travel < 60 ~ "Under 1 Hour",
+    Median_Travel >= 60 & Median_Travel < 120 ~ "1 to 2 Hours",
+    Median_Travel >= 120 & Median_Travel < 180 ~ "2 to 3 Hours",
+    Median_Travel >= 180 & Median_Travel < 240 ~ "3 to 4 Hours",
+    Median_Travel >= 240 & Median_Travel <= 300 ~ "4 to 5 Hours",
+    Median_Travel > 300 ~ "Over 5 Hours"
+  ))
+
+dat_tt_one_2011_2019$median_travel_binned <- factor(dat_tt_one_2011_2019$median_travel_binned, levels = c("Under 1 Hour", "1 to 2 Hours", "2 to 3 Hours", "3 to 4 Hours", "4 to 5 Hours", "Over 5 Hours"))
+
+dat_tt_one_2011_2019 %<>%
+  mutate(population_obese = trunc(total_pop * X..Obese/100)) %>%
+  ungroup() %>%
+  group_by(Year, Census_Region, median_travel_binned) %>%
+  mutate(population_obese_census = sum(population_obese)) %>%
+  ungroup() %>%
+  group_by(Year, median_travel_binned) %>%
+  mutate(population_obese_totla = sum(population_obese))
+
+dat_tt_one_2011_2019 %>%
+  group_by(Year, median_travel_binned) %>%
+  summarise(population_obese_travel_band = sum(population_obese))
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+dat_tt_one_2011_2019 %>%
+  filter(Year == 2011 | Year == 2019) %>%
+  ggplot(aes(x = median_travel_binned, y = population_obese_census, fill = Census_Region)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") + 
+  facet_wrap(~Year) +
+  theme_classic() +
+  labs(x = "Travel Time",
+       y = "People",
+       title = "Distribution of Individuals with Obesity by Travel Bands",
+       fill = "Census Region") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_jama() +
+  scale_y_continuous(labels = comma)
+ggsave("210407_BinnedTravelTimes_Population_Year_Census.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+```
+
+# Recreate Maps as Two Figures
+```{r}
+# Prevalence Only
+counties_with_data %>%
+  filter(state_abbv != "AK" & state_abbv != "HI") %>%
+  ggplot() +
+  geom_polygon(aes(x = long, 
+                   y = lat, 
+                   group = group,
+                   fill = obesity_categories), 
+               color = "black", 
+               size = 0.05) +
+  scale_fill_manual(name = "Obesity Categories",
+                    values = c("#e2f1fc", "#8cc7f4", "#0091ea", "#004399", "#012656")) + 
+  geom_polygon(data = filter(states_polygon,
+                             state_abbv != "AK" &
+                               state_abbv != "HI"),
+               aes(x = long, 
+                   y = lat, 
+                   group = group), 
+               fill = NA, 
+               color = "black", 
+               size = 0.25) + 
+  coord_map(projection = "bonne", lat0 = 50) +
+  facet_wrap(~Year) +
+  theme_map() +
+  ggtitle("US Obesity Prevalence, 2011 - 2019") +
+  theme(legend.position = "bottom") + 
+  guides(fill=guide_legend(title=""))
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("210901_obesityprevalence_diplomates_map_prevalenceonly.tiff", width = 7.25, height = 4.51, bg = "transparent")  
+
+# Diplomates
+plot_2011 <- ggplot() + 
+  geom_polygon(data = filter(states_polygon,
+                             state_abbv != "AK" &
+                               state_abbv != "HI"),
+               aes(x = long, 
+                   y = lat, 
+                   group = group), 
+               fill = NA, 
+               color = "black", 
+               size = 0.25) + 
+  coord_map(projection = "bonne", lat0 = 50) +
+  geom_point(data = filter(hospital_map_2011,
+                           lon > -130 & 
+                             lon < -70 & 
+                             lat > 0 &
+                             Hospital != "Loyola Medicine Maywood Illinois"), 
+             aes(x = lon, 
+                 y = lat,
+                 size = cumulative_diplomates_recalculated),
+             fill = "#ffad4a",
+             color = "black",
+             pch = 21) +
+  theme_map() +
+  scale_size(name = "",
+             limits = c(1, 25)) +
+  theme(legend.position = "none") +
+  labs(title = "2011")
+
+plot_2019 <- plot_2019 +
+  scale_size(name = "",
+             limits = c(1, 25))
+
+plot_all <- ggarrange(plot_2011, plot_2012, plot_2013, plot_2014, plot_2015, plot_2016, plot_2017, plot_2018, plot_2019,
+                      common.legend = TRUE,
+                      ncol = 3,
+                      nrow = 3,
+                      legend = "bottom")
+annotate_figure(plot_all,
+               top = text_grob("Number of Adult Obesity Diplomates per Facility",
+               face = "bold",
+               size = 15),
+               fig.lab.pos = "top.left")
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+ggsave("210901_obesityprevalence_diplomates_map_diplomatesonly.tiff", width = 7.25, height = 4.51, bg = "transparent")  
+
+```
+
+# Revised Severe Obesity by Census Region Figure
+# Re-estimating Facility Mapping with Severe Obesity
+```{r}
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+prevalence <- read.csv("210406_severeobesityprevalence.csv")
+prevalence$state <- as.character(prevalence$state)
+
+mapped_diplomates_severe <- raw_map %>%
+  filter(Year != 2019) %>%
+  left_join(., prevalence, by = c("Year" = "year", "STATEFP" = "state")) %>%
+  group_by(State, County) %>%
+  mutate(number_obese_severe = trunc(POPULATION * (prevalence_loop))) %>%
+  ungroup() %>%
+  group_by(Year, Hospital) %>%
+  mutate(mapped_tracts_severe = n(),
+         mapped_population_severe = sum(number_obese_severe))
+
+mapped_diplomates_severe$Year <- as.character(mapped_diplomates_severe$Year)
+diplomates_severe <- filter(diplomates, Year != 2019)
+
+mapped_diplomates_severe %<>%
+  left_join(., diplomates_severe, by = c("Hospital", "Year")) %>%
+  arrange(Hospital, Year) %>%
+  ungroup() %>%
+  group_by(Hospital) %>%
+  na.locf(.) %>%
+  mutate(diplomates_per_capita_severe = cumulative_diplomates/mapped_population_severe * 100000)
+
+mapped_diplomates_severe %>%
+  ungroup() %>%
+  group_by(Year) %>%
+  summarise(mean(diplomates_per_capita_severe),
+            median(diplomates_per_capita_severe))
+
+summary(filter(mapped_diplomates_severe, Year == 2011)$diplomates_per_capita_severe)
+summary(filter(mapped_diplomates_severe, Year == 2018)$diplomates_per_capita_severe)
+
+mapped_diplomates_unique_severe <- mapped_diplomates_severe %>%
+  distinct(Hospital, Year, .keep_all = TRUE) %>%
+  select(Census_Region, Hospital, Year, State, mapped_tracts_severe, mapped_population_severe, number_of_diplomates, cumulative_diplomates, diplomates_per_capita_severe)
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Figures")
+mapped_diplomates_unique_severe %>%
+  filter(Year == 2011 | Year == 2019) %>%
+  ggplot(aes(x = as.factor(Year), y = log(diplomates_per_capita_severe), color = Census_Region)) +
+  geom_boxplot() +
+  theme_classic() +
+  facet_wrap(~Census_Region) +
+  labs(x = "Diplomates Per 100,000 Persons",
+       y = "Log Count",
+       title = "Log Diplomates Per 100,000 Persons with Severe Obesity by Census Region",
+       color = "Census Region") +
+  scale_color_jama()
+ggsave("210902_LogDiplomatesPerCapitaSevere_Boxplot.tiff", width = 7.29, height = 4.51) #7.29 x 4.51
+
+```
+

@@ -1,0 +1,732 @@
+---
+title: "Specific Aim 1 Obesity Certification Analysis"
+author: "Last Updated by: Catherine Pollack"
+date: "Last Updated: November 4, 2020"
+output: html_notebook
+---
+
+# Install libraries and packages
+```{r}
+library(tidyverse) #For everything
+library(datasets) #For state abbreviations
+library(splitstackshape) #For splitting columns
+library(readxl) #For reading in excel files
+library(data.table) #Partial string matching
+library(hash) #For table of hospitals
+library(reshape2) #For creating the list of hospitals 
+library(stringdist) #For calculating string similarity
+library(purrr) #For extracting list elements from a large list
+library(openintro) #For converting state abbreviations to names 
+library(tidygeocoder) #For converting addresses to lat-long
+library(magrittr) #%<>%
+```
+
+# Bring in data sets
+```{r}
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+additional <- read.csv('ABOM_Additional191011.csv', stringsAsFactors = FALSE)
+additional_DO <- read.csv('ABOM_Additional_DO191015.csv', stringsAsFactors = FALSE)
+additional_US <- read.csv('ABOM_DoxViaUSNews_191015.csv', stringsAsFactors = FALSE)
+originally_missed <- read.csv('200504_MissingData.csv', stringsAsFactors = FALSE)
+```
+
+# Read in National Data File
+```{r}
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data") #Set Working Directory
+counties <- read.delim("NationalFile_20190901 2.txt", sep = "|")
+```
+
+# Keep only places or hospitals
+```{r}
+counties %<>%
+  filter(FEATURE_CLASS == "Populated Place" | FEATURE_CLASS == "Hospital") %>%
+  select(FEATURE_NAME, FEATURE_CLASS, STATE_ALPHA, COUNTY_NAME, PRIM_LAT_DEC, PRIM_LONG_DEC)
+```
+
+# Separate out hospital names
+```{r}
+hospitals <- filter(counties, FEATURE_CLASS == "Hospital")
+```
+
+# Remove <td> and </td>
+```{r}
+abom <- data.frame(lapply(abom, function(x) {gsub("<td>", "", x)}))
+abom <- data.frame(lapply(abom, function(x) {gsub("</td>", "", x)}))
+```
+
+# Replace ASCII string with "&"
+```{r}
+abom$Additional.Board.Certification <- abom$Additional.Board.Certification %>%
+  str_replace_all("&amp;", "&")
+```
+
+# Split off list of names
+```{r}
+names <- abom$Name
+```
+
+# Check if there are any overlapping names
+```{r}
+names <- as.character(names) #Splits off names
+
+length(unique(names)) == length(names) #Checks if there are overlapping names
+```
+
+# Pull the names that appear more than once
+```{r}
+names_duplicates <- names[which(duplicated(names) == TRUE)] #Pull the names that are duplicated
+names_nodups <- names[!names %in% names_duplicates]
+```
+
+# Export name CSVs -- MAKE SURE TO CHANGE FILE NAME BEFORE RUNNING
+```{r}
+#write.csv(names_nodups, file = "NoDuplicatedNames_191011.csv")
+#write.csv(names_duplicates, file = "DuplicatedNames_191011.csv")
+```
+
+# Separate out names that weren't pulled in Doximity initial search
+```{r}
+names_leftout <- filter(additional, address.info == "")
+names_leftout <- inner_join(names_leftout, abom, by = "Name") %>%
+  select(Name, City, State.Province) %>%
+  filter(State.Province %in% datasets::state.abb) #Removes territories and Canada
+  
+```
+`
+# Export left-out names for US News search
+```{r}
+#write.csv(names_leftout, file = "NoDoximity_191015.csv")
+```
+
+# Combine data and remove duplicates
+```{r}
+dat <- full_join(additional, additional_DO) %>%
+  full_join(additional_US) %>%
+  arrange(., desc(address.info)) %>%
+  group_by(Name) %>%
+  filter(row_number() == 1)
+  
+```
+
+# Calculate year of certification
+```{r}
+dat <- left_join(dat, abom)
+dat$Date <- as.Date(dat$Initial.Certification, "%m/%d/%Y")
+dat$Year <- substring(dat$Date, 1, 4) #Some are listed well before ABOM -- Maybe they listed birthdate? 
+# Consider pulling final certification date and subtracting ten to get actual certification
+```
+
+# Remove all Canada State/Province Affiliation
+```{r}
+canada <- filter(dat, State.Province == "NL" | State.Province == "PE" | State.Province == "NS" | State.Province == "NB" | State.Province == "QC" | State.Province == "ON" | State.Province == "MB" | State.Province == "SK" | State.Province == "AB" | State.Province == "BC" | State.Province == "YT" | State.Province == "NT" | State.Province == "NU")
+
+dat %<>%
+  filter(!(State.Province %in% canada$State.Province))
+```
+
+# Extract Addresses
+```{r}
+ dat <- separate(dat, col = "address.info",into = c("Drop", "Address"), sep = c("Office Address"))
+ dat <- separate(dat, col = "Address", into = c("Address", "Phone"), sep = c("Phone"))
+ dat <- separate(dat, col = "Address", into = c("Address", "Drop"), sep = c("Is this information wrong?"))
+ dat <- dat %>%
+   select(-c(Phone, Drop))
+```
+
+# Hospital Affiliations
+```{r}
+dat <- separate(dat, col = "hospital.info", into = c("Drop", "Hospital"), sep = c("Hospital Affiliations")) %>% select(-c(Drop)) #Separate out hospital information
+
+new_hospitals <- dat %>%
+  select(Name, Hospital, Year) #Create a new list with variables of interest
+
+new_hospitals <- na.omit(new_hospitals) #Removes rows without a hospital
+new_hospitals$Hospital <- as.character(new_hospitals$Hospital) #Turns variable into a character
+
+hospitals$states <- abbr2state(hospitals$STATE_ALPHA)
+names <- lapply(new_hospitals$Hospital, function(x) {
+  test <- tstrsplit(gsub('([[:upper:]])', ' \\1', x), ", ") #Split on the upper case letter and add a space
+  if (length(test) > 1) { #If multiple hospitals 
+    for (i in 2:(length(test))) { # For each one
+      if (strsplit(test[[i]], " ")[[1]][2] %in% c("New", "North", "South", "West", "Rhode")) { #For states with two-word names
+        state <- paste(strsplit(test[[i]], " ")[[1]][2], strsplit(test[[i]], " ")[[1]][4]) #Capture the state variable
+        test[[i-1]] <- paste(test[[i-1]], state) #For the row, keep the state
+        test[[i]] <- paste(strsplit(test[[i]], " ")[[1]][5:length(strsplit(test[[i]], " ")[[1]])], collapse = " ") #Keep the hospital name
+        
+      } else if (strsplit(test[[i]], " ")[[1]][2] %in% unique(hospitals$states)) { #If statename is unique
+        test[[i-1]] <- paste(test[[i-1]], strsplit(test[[i]], " ")[[1]][2]) #Capture the state name
+        test[[i]] <- paste(strsplit(test[[i]], " ")[[1]][3:length(strsplit(test[[i]], " ")[[1]])], collapse = " ") #Capture the hospital name
+      }
+    }
+    test <- test[1:(length(test)-1)] #Save the test name for all
+  }
+})
+
+holder <- as.data.frame(cbind(new_hospitals$Name, names)) #Attaches the list of names to the corresponding hospital
+unlist_names <- unlist(holder$names) #Extends out the list of names
+
+length_names <- lapply(1:nrow(holder), function(x) {
+  length(holder$names[x][[1]])}) #For each row, calculate the number of hospitals associated with each individual
+length_names <- unlist(length_names) #Extend out the number of hospitals affiliated with each name
+
+diplomates <- unlist(holder$V1) #Unlist the names of the diplomates
+
+final_diplomates <- as.data.frame(cbind(rep(diplomates, length_names), unlist_names)) #Creates final data set of diplomates and their corresponding institutions, correctly spelled without any odd spellings
+
+colnames(final_diplomates) <- c("Name", "Hospital") #Renames columns
+final_diplomates$Hospital <- as.character(final_diplomates$Hospital) #Change hospital column into a character
+
+# If the last word is not a state, combine it with the next row and delete the next row. -- Remember to do this for both diplomates_states and final_diplomates
+
+i = 1 #Initialize counter
+while (i < nrow(final_diplomates)) { #While the counter is not equal to the length of the database 
+  split <- strsplit(final_diplomates[i,2], " ") #Split on the space for the hospital of interest
+  if (!(tail(split[[1]], n = 1) %in% hospitals$states)) { #If last word is not a state
+    if (!(paste(tail(split[[1]], n = 2), collapse = " ") %in% hospitals$states)) { #If combinations of last two words is not a state
+    final_diplomates[i, 2] <- paste(final_diplomates[i,2], final_diplomates[i+1,2]) #Combine the ith and ith + 1 hospital names
+    final_diplomates <- final_diplomates[-(i+1),] #Remove problematic row
+    }
+  }
+  i = i + 1
+}
+
+diplomates_states <- final_diplomates # Remake diplomate data set with same number of diplomates
+
+diplomates_states$Hospital <- lapply(diplomates_states$Hospital, function(x){ #For each hospital
+  split <- strsplit(x, " ") #Split on the space
+  #If the last two words are "West Virginia", save as West Virginia, else check 
+  ifelse(paste(tail(split[[1]], n = 2), collapse = " ") == "West Virginia", "West Virginia",
+         ifelse(tail(split[[1]], n = 1) %in% hospitals$states, tail(split[[1]], n = 1), paste(tail(split[[1]], n = 2), collapse = " ")))
+  #Keep only the state
+})
+
+diplomates_states$Hospital <- unlist(diplomates_states$Hospital)
+diplomates_states <- filter(diplomates_states, Name != "Maribel Campos") #Removing Puerto Rico
+final_diplomates <- filter(final_diplomates, Name != "Maribel Campos") #Removing Puerto Rico
+
+final_diplomates$Hospital <- as.character(final_diplomates$Hospital) #Converts hospital to character
+
+final_diplomates$Hospital <- ifelse(startsWith(final_diplomates$Hospital, " "), sub(".", "", final_diplomates$Hospital), final_diplomates$Hospital) #Removes words that start with a space with nothing
+
+final_diplomates <- final_diplomates %>%
+  group_by(Hospital) %>% #Group by hospital
+  mutate("Final_Count" = sum(n())) #Count the amount of diplomates at each hospital 
+
+```
+
+# Geocode hospital locations -- CHECKED
+```{r}
+library(ggmap)
+register_google("REMOVED") #API Key
+final_diplomates$coordinates <- lapply(final_diplomates$Hospital, geocod2e) #Geocode hospital locations
+
+final_diplomates %<>% 
+  unnest(coordinates) #Unnest coordinates into two columns
+#setwd("/Users/cpollack/Documents/GitHub/ObesityCertification/Scripts")
+#write.csv(final_diplomates, "201104_HospitalsWithLocations.csv") #Save -- 2138 of the 2145 able to be successfully geocoded
+```
+
+# Figure out which people don't have hospitals that were geocoded -- CHECKED
+```{r}
+address_no_hospital <- filter(dat, is.na(Hospital) & address.info != "") #702 where address is not missing but hospital is
+#setwd("/Users/cpollack/Documents/GitHub/ObesityCertification/Scripts")
+#write.csv(address_no_hospital, "201104_HospitalsAddressOnly_NoGeocode.csv") #Save
+
+address_no_hospital$coordinates <- lapply(address_no_hospital$address.info, geocode) #Geocode hospital locations
+
+address_no_hospital %<>%
+  unnest(coordinates)
+
+#write.csv(address_no_hospital, "201104_HospitalsWithLocations_Addresses.csv") #Save
+#address_no_hospital <- read.csv("201104_HospitalsWithLocations_Addresses.csv")
+```
+
+# Prep data set that was originally missed and geocode -- CHECKED
+```{r}
+originally_missed_hospitals <- as.data.frame(unlist(strsplit(originally_missed$Hospital.Affiliations, ";")), stringsAsFactors = FALSE) #Pull out all the hospitals
+colnames(originally_missed_hospitals) <- "Hospitals" #839 #Rename column
+originally_missed_hospitals %<>% 
+  filter(Hospitals != " ") #%>% #823 #Keep only those that are labeled
+  unique(.) #807 #Keep one row per hospital
+#write.csv(originally_missed_hospitals, "201104_OriginallyMissedHospitals_NoGeocode.csv") #Save
+
+originally_missed_address <- filter(originally_missed, Hospital.Affiliations == "" & Office.Address != "") #38
+#write.csv(originally_missed_address, "201104_OriginallyMissedAddresses_NoGeocode.csv") #Save
+
+originally_missed_hospitals$coordinates <- lapply(originally_missed_hospitals$Hospitals, geocode) #Geocode hospital locations
+originally_missed_hospitals %<>% 
+  unnest(coordinates) #Unnest coordinates into two columns
+#write.csv(originally_missed_hospitals, "201104_OriginallyMissedHospitals.csv") #Save
+originally_missed_hospitals <- read.csv("201104_OriginallyMissedHospitals.csv") #Save
+
+originally_missed_address$coordinates <- lapply(originally_missed_address$Office.Address, geocode) #Geocode hospital locations
+originally_missed_address %<>% 
+  unnest(coordinates) #Unnest coordinates into two columns
+#write.csv(originally_missed_address, "201104_OriginallyMissedAddresses.csv") #Save
+originally_missed_address <- read.csv("200505_OriginallyMissedAddresses.csv")
+```
+
+# Extract data sets by year 
+```{r}
+years <- dat %>%
+  select(Name, Year)
+
+final_diplomates %<>% 
+  select(Name, Hospital)
+
+final_diplomates$Hospital <- ifelse(startsWith(final_diplomates$Hospital, " "), sub(".", "", final_diplomates$Hospital), final_diplomates$Hospital)
+
+#Spot-check 35 that are missing and update
+hospitals_to_correct$lon[48] <- -149.828537
+hospitals_to_correct$lat[48] <- 61.211060
+hospitals_to_correct$lon[53] <- -72.263743
+hospitals_to_correct$lat[53] <- 43.640757
+hospitals_to_correct$lon[103] <- -96.713714
+hospitals_to_correct$lat[103] <- 43.534672
+hospitals_to_correct$lon[155] <- -97.364119
+hospitals_to_correct$lat[155] <- -97.364119
+hospitals_to_correct$lon[164] <- -83.214608
+hospitals_to_correct$lat[164] <- 42.291026
+hospitals_to_correct$lon[170] <- -81.192609
+hospitals_to_correct$lat[170] <- 37.765706
+hospitals_to_correct$lon[317] <- -84.501077
+hospitals_to_correct$lat[317] <- 39.140834
+hospitals_to_correct$lon[321] <- -96.704866
+hospitals_to_correct$lat[321] <- 32.834528
+hospitals_to_correct$lon[401] <- -89.465406
+hospitals_to_correct$lat[401] <- 43.567121
+hospitals_to_correct$lon[582] <- NA #Unsure
+hospitals_to_correct$lat[582] <- NA #Unsure
+hospitals_to_correct$lon[591] <- -87.699570
+hospitals_to_correct$lat[591] <- 34.746289
+hospitals_to_correct$lon[662] <- -77.226588
+hospitals_to_correct$lat[662] <- 38.856687
+hospitals_to_correct$lon[732] <- -122.058465
+hospitals_to_correct$lat[732] <- 37.892533
+hospitals_to_correct$lon[1075] <- -71.246518
+hospitals_to_correct$lat[1075] <- 42.330905
+hospitals_to_correct$lon[1120] <- -88.343778
+hospitals_to_correct$lat[1120] <- 41.887455
+hospitals_to_correct$lon[1130] <- -80.823066
+hospitals_to_correct$lat[1130] <- 35.210634
+hospitals_to_correct$lon[1203] <- -71.316645
+hospitals_to_correct$lat[1203] <- 42.877065
+hospitals_to_correct$lon[1233] <- -84.984217
+hospitals_to_correct$lat[1233] <- 32.480588
+hospitals_to_correct$lon[1269] <- -122.204749
+hospitals_to_correct$lat[1269] <- 48.000165
+hospitals_to_correct$lon[1281] <- -122.295565
+hospitals_to_correct$lat[1281] <- 38.325175
+hospitals_to_correct$lon[1309] <- -117.380598
+hospitals_to_correct$lat[1309] <- 33.976763
+hospitals_to_correct$lon[1310] <- -76.482420
+hospitals_to_correct$lat[1310] <- 37.064123
+hospitals_to_correct$lon[1327] <- -88.270755
+hospitals_to_correct$lat[1327] <- 41.729298
+hospitals_to_correct$lon[1369] <- -117.833561
+hospitals_to_correct$lat[1369] <- 34.097840
+hospitals_to_correct$lon[1380] <- -82.531299
+hospitals_to_correct$lat[1380] <- 27.31883
+hospitals_to_correct$lon[1428] <- -73.629955
+hospitals_to_correct$lat[1428] <- 40.652189
+hospitals_to_correct$lon[1440] <- -73.207108
+hospitals_to_correct$lat[1440] <- 42.874636
+hospitals_to_correct$lon[1473] <- -94.168733
+hospitals_to_correct$lat[1473] <- 45.574530
+hospitals_to_correct$lon[1477] <- -90.164736
+hospitals_to_correct$lat[1477] <- 32.332857
+hospitals_to_correct$lon[1486] <- -84.959309
+hospitals_to_correct$lat[1486] <- 32.505536
+hospitals_to_correct$lon[1496] <- -89.645506
+hospitals_to_correct$lat[1496] <- 39.804868
+hospitals_to_correct$lon[1526] <- -90.500936
+hospitals_to_correct$lat[1526] <- 38.653003
+hospitals_to_correct$lon[1559] <- -90.500936
+hospitals_to_correct$lat[1559] <- 30.108631
+hospitals_to_correct$lon[1562] <- -73.201481
+hospitals_to_correct$lat[1562] <- 41.201669
+hospitals_to_correct$lon[1588] <- -121.249216
+hospitals_to_correct$lat[1588] <- 38.765895
+
+dip_year_hospital <- inner_join(years, final_diplomates, by = "Name") %>%
+  full_join(., hospitals_to_correct, by = "Hospital") %>%
+  filter(is.na(Hospital) == FALSE)
+
+#4,150 instances
+dip_11_hop <- filter(dip_year_hospital, Year == 2011) %>%
+  distinct(Hospital, .keep_all = TRUE) #38 diplomates, 60 unique hospitals
+dip_12_hop <- filter(dip_year_hospital, Year <= 2012)  %>%
+  distinct(Hospital, .keep_all = TRUE) #347 diplomates, 523 hospitals
+dip_13_hop <- filter(dip_year_hospital, Year <= 2013) %>%
+  distinct(Hospital, .keep_all = TRUE) #487 diplomates, 691 hospitals
+dip_14_hop <- filter(dip_year_hospital, Year <= 2014) %>%
+  distinct(Hospital, .keep_all = TRUE) #497 diplomates, 702 hospitals
+dip_15_hop <- filter(dip_year_hospital, Year <= 2015) %>%
+  distinct(Hospital, .keep_all = TRUE) #773 diplomates, 952 hospitals
+dip_16_hop <- filter(dip_year_hospital, Year <= 2016) %>%
+  distinct(Hospital, .keep_all = TRUE) #1011 diplomates, 1176 hospitals
+dip_17_hop <- filter(dip_year_hospital, Year <= 2017) %>%
+  distinct(Hospital, .keep_all = TRUE) #1321 diplomates, 1439 hospitals
+dip_18_hop <- filter(dip_year_hospital, Year <= 2018) %>%
+  distinct(Hospital, .keep_all = TRUE) #1692 diplomates, 1667 hospitals
+dip_19_hop <- filter(dip_year_hospital, Year <= 2019) %>%
+  distinct(Hospital, .keep_all = TRUE) #2145 diplomates, 1872 hospitals
+```
+
+# Repeat above, but with address file.
+```{r}
+address_no_hospital %<>%
+  select(Name, address.info, Year, lon, lat)
+
+address_no_hospital$lon[16] <- -70.386375
+address_no_hospital$lat[16] <- 43.458468
+address_no_hospital$lon[38] <- -122.477028
+address_no_hospital$lat[38] <- 47.242326
+address_no_hospital$lon[94] <- -76.817576
+address_no_hospital$lat[94] <- 40.283692
+address_no_hospital$lon[140] <- -76.139179
+address_no_hospital$lat[140] <- 43.042478
+address_no_hospital$lon[141] <- -155.981035
+address_no_hospital$lat[141] <- 19.626998
+address_no_hospital$lon[146] <- -105.078624
+address_no_hospital$lat[146] <- 39.880786
+address_no_hospital$lon[180] <- -86.048004
+address_no_hospital$lat[180] <- 39.905668
+address_no_hospital$lon[241] <- -115.297423
+address_no_hospital$lat[241] <- 36.090438
+address_no_hospital$lon[258] <- -121.310344
+address_no_hospital$lat[258] <- 38.761031
+address_no_hospital$lon[283] <- -111.983103
+address_no_hospital$lat[283] <- 33.641667
+address_no_hospital$lon[298] <- -118.262254
+address_no_hospital$lat[298] <- 34.158859
+address_no_hospital$lon[309] <- -97.876211
+address_no_hospital$lat[309] <- 30.029331
+address_no_hospital$lon[440] <- -82.834997
+address_no_hospital$lat[440] <- 27.937137
+address_no_hospital$lon[470] <- -80.259070
+address_no_hospital$lat[470] <- 26.118161
+address_no_hospital$lon[554] <- -81.786235
+address_no_hospital$lat[554] <- 26.213120
+address_no_hospital$lon[588] <- -71.069131
+address_no_hospital$lat[588] <- 42.344073
+
+address_no_hospital <- address_no_hospital[-68,] #Remove PR
+
+#711 instances
+dip_11_add <- filter(address_no_hospital, Year <= 2011) %>%
+  distinct(address.info, .keep_all = TRUE) #78 diplomates, 78 unique hospitals
+dip_12_add <- filter(address_no_hospital, Year <= 2012)  %>%
+  distinct(address.info, .keep_all = TRUE) #132 diplomates, 132 hospitals
+dip_13_add <- filter(address_no_hospital, Year <= 2013) %>%
+  distinct(address.info, .keep_all = TRUE) #184 diplomates, 184 hospitals
+dip_14_add <- filter(address_no_hospital, Year <= 2014) %>%
+  distinct(address.info, .keep_all = TRUE) #192 diplomates, 192 hospitals
+dip_15_add <- filter(address_no_hospital, Year <= 2015) %>%
+  distinct(address.info, .keep_all = TRUE) #256 diplomates, 256 hospitals
+dip_16_add <- filter(address_no_hospital, Year <= 2016) %>%
+  distinct(address.info, .keep_all = TRUE) #342 diplomates, 342 hospitals
+dip_17_add <- filter(address_no_hospital, Year <= 2017) %>%
+  distinct(address.info, .keep_all = TRUE) #445 diplomates, 445 hospitals
+dip_18_add <- filter(address_no_hospital, Year <= 2018) %>%
+  distinct(address.info, .keep_all = TRUE) #558 diplomates, 558 hospitals
+dip_19_add <- filter(address_no_hospital, Year <= 2019) %>%
+  distinct(address.info, .keep_all = TRUE) #711 diplomates, 711 hospitals
+
+```
+
+# Repeat the above, but with the originally missed hospital file
+```{r}
+years <- dat %>%
+  select(Name, Year)
+
+which(is.na(originally_missed_hospitals$lon))
+
+#Spot-check 35 that are missing and update
+originally_missed_hospitals$lon[6] <- -87.513936
+originally_missed_hospitals$lat[6] <- 33.198222
+originally_missed_hospitals$lon[349] <- -83.051795
+originally_missed_hospitals$lat[349] <- 42.353540
+originally_missed_hospitals$lon[363] <- -83.682160
+originally_missed_hospitals$lat[363] <- 42.317731
+originally_missed_hospitals$lon[405] <- -80.854599
+originally_missed_hospitals$lat[405] <- 35.057202
+originally_missed_hospitals$lon[611] <- -75.517324
+originally_missed_hospitals$lat[611] <- 40.567154
+originally_missed_hospitals$lon[718] <- -96.345225
+originally_missed_hospitals$lat[718] <- 30.657871
+originally_missed_hospitals$lon[761] <- -73.200890
+originally_missed_hospitals$lat[761] <- 44.480255
+
+originally_missed_hospitals_names <- originally_missed %>% #Original file
+  select(Name, Year, Hospital.Affiliations) %>% #Pull out only relevant variables
+  filter(Hospital.Affiliations != " " & Hospital.Affiliations != "") %>% #Remove unlisted hospitals
+  separate_rows(Hospital.Affiliations, sep = ";") %>% #Separate out the rows by semi-colon
+  filter(Hospital.Affiliations != " " & Hospital.Affiliations != "") %>% #Remove those that had an extra space
+  left_join(., originally_missed_hospitals, by = c("Hospital.Affiliations" = "Hospitals")) #Left join person file with hospital lat-lon file
+
+#823 instances
+dip_11_hop_missed <- filter(originally_missed_hospitals_names, Year == 2011) %>%
+  distinct(Hospital.Affiliations, .keep_all = TRUE) #3 diplomates, 3 unique hospitals
+dip_12_hop_missed <- filter(originally_missed_hospitals_names, Year <= 2012)  %>%
+  distinct(Hospital.Affiliations, .keep_all = TRUE) #147 diplomates, 147 hospitals
+dip_13_hop_missed <- filter(originally_missed_hospitals_names, Year <= 2013) %>%
+  distinct(Hospital.Affiliations, .keep_all = TRUE) #209 diplomates, 209 hospitals
+dip_14_hop_missed <- filter(originally_missed_hospitals_names, Year <= 2014) %>%
+  distinct(Hospital.Affiliations, .keep_all = TRUE) #213 diplomates, 212 hospitals
+dip_15_hop_missed <- filter(originally_missed_hospitals_names, Year <= 2015) %>%
+  distinct(Hospital.Affiliations, .keep_all = TRUE) #290 diplomates, 289 hospitals
+dip_16_hop_missed <- filter(originally_missed_hospitals_names, Year <= 2016) %>%
+  distinct(Hospital.Affiliations, .keep_all = TRUE) #408 diplomates, 407 hospitals
+dip_17_hop_missed <- filter(originally_missed_hospitals_names, Year <= 2017) %>%
+  distinct(Hospital.Affiliations, .keep_all = TRUE) #518 diplomates, 513 hospitals
+dip_18_hop_missed <- filter(originally_missed_hospitals_names, Year <= 2018) %>%
+  distinct(Hospital.Affiliations, .keep_all = TRUE) #678 diplomates, 669 hospitals
+dip_19_hop_missed <- filter(originally_missed_hospitals_names, Year <= 2019) %>%
+  distinct(Hospital.Affiliations, .keep_all = TRUE) #823 diplomates, 807 hospitals
+
+```
+
+# Repeat above, but with addresses 
+```{r}
+which(is.na(originally_missed_address$lon))
+
+originally_missed_address$lon[8] <- -121.456301
+originally_missed_address$lat[8] <- 38.556296
+originally_missed_address$lon[12] <- -105.131378
+originally_missed_address$lat[12] <- 39.718870
+
+originally_missed_address %<>%
+  select(Name, Year, Office.Address, lon, lat)
+
+#38 instances
+dip_11_add_missed <- filter(originally_missed_address, Year == 2011) %>%
+  distinct(Office.Address, .keep_all = TRUE) #0 diplomates, 0 unique hospitals
+dip_12_add_missed <- filter(originally_missed_address, Year <= 2012)  %>%
+  distinct(Office.Address, .keep_all = TRUE) #6 diplomates, 6 hospitals
+dip_13_add_missed <- filter(originally_missed_address, Year <= 2013) %>%
+  distinct(Office.Address, .keep_all = TRUE) #7 diplomates, 7 hospitals
+dip_14_add_missed <- filter(originally_missed_address, Year <= 2014) %>%
+  distinct(Office.Address, .keep_all = TRUE) #7 diplomates, 7 hospitals
+dip_15_add_missed <- filter(originally_missed_address, Year <= 2015) %>%
+  distinct(Office.Address, .keep_all = TRUE) #14 diplomates, 14 hospitals
+dip_16_add_missed <- filter(originally_missed_address, Year <= 2016) %>%
+  distinct(Office.Address, .keep_all = TRUE) #17 diplomates, 17 hospitals
+dip_17_add_missed <- filter(originally_missed_address, Year <= 2017) %>%
+  distinct(Office.Address, .keep_all = TRUE) #22 diplomates, 22 hospitals
+dip_18_add_missed <- filter(originally_missed_address, Year <= 2018) %>%
+  distinct(Office.Address, .keep_all = TRUE) #38 diplomates, 38 hospitals
+dip_19_add_missed <- filter(originally_missed_address, Year <= 2019) %>%
+  distinct(Office.Address, .keep_all = TRUE) #38 diplomates, 38 hospitals
+
+```
+
+# Combine hospital and address
+```{r}
+address_no_hospital$lonlat <- paste(address_no_hospital$lon, ",", address_no_hospital$lat)
+hospitals_to_correct$lonlat <- paste(hospitals_to_correct$lon, ",", hospitals_to_correct$lat)
+
+originally_missed_hospitals_names %<>%
+  select(-X)
+
+colnames(originally_missed_hospitals_names)[3] <- "Hospital"
+colnames(originally_missed_address)[3] <- "Hospital"
+
+originally_missed_hospitals_names$latlon <- paste(originally_missed_hospitals_names$lat, ",", originally_missed_hospitals_names$lon)
+originally_missed_address$latlon <- paste(originally_missed_address$lat, ",", originally_missed_address$lon)
+
+dat_diplomates <- as.data.frame(rbind(dat_diplomates, as.data.frame(originally_missed_hospitals_names), as.data.frame(originally_missed_address)))
+
+length(unique(dat_diplomates$Name)) #3,227
+
+dip_11_all <- filter(dat_diplomates, Year <= 2011) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_12_all <- filter(dat_diplomates, Year <= 2012) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_13_all <- filter(dat_diplomates, Year <= 2013) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_14_all <- filter(dat_diplomates, Year <= 2014) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_15_all <- filter(dat_diplomates, Year <= 2015) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_16_all <- filter(dat_diplomates, Year <= 2016) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_17_all <- filter(dat_diplomates, Year <= 2017) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_18_all <- filter(dat_diplomates, Year <= 2018) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_19_all <- filter(dat_diplomates, Year <= 2019) %>%
+  distinct(latlon, .keep_all = TRUE)
+```
+
+# Save all files
+```{r}
+#setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+#write.csv(dip_11_all, "200505_Hospitals_2011.csv")
+#write.csv(dip_12_all, "200505_Hospitals_2012.csv")
+#write.csv(dip_13_all, "200505_Hospitals_2013.csv")
+#write.csv(dip_14_all, "200505_Hospitals_2014.csv")
+#write.csv(dip_15_all, "200505_Hospitals_2015.csv")
+#write.csv(dip_16_all, "200505_Hospitals_2016.csv")
+#write.csv(dip_17_all, "200505_Hospitals_2017.csv")
+#write.csv(dip_18_all, "200505_Hospitals_2018.csv")
+#write.csv(dip_19_all, "200505_Hospitals_2019.csv")
+```
+
+# Extract all missing values
+```{r}
+#missing <- filter(dat, is.na(Address) & is.na(Hospital))
+#write.csv(missing[,c(1, 20:25)], "missing_data.csv")
+```
+
+# Take out individuals with "Canada" listed in ABOM
+```{r}
+dat_diplomates_no_canada <- dat_diplomates[-which(dat_diplomates$Name %in% canada$Name),]
+
+dip_11_all_nc <- filter(dat_diplomates_no_canada, Year <= 2011) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_12_all_nc <- filter(dat_diplomates_no_canada, Year <= 2012) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_13_all_nc <- filter(dat_diplomates_no_canada, Year <= 2013) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_14_all_nc <- filter(dat_diplomates_no_canada, Year <= 2014) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_15_all_nc <- filter(dat_diplomates_no_canada, Year <= 2015) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_16_all_nc <- filter(dat_diplomates_no_canada, Year <= 2016) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_17_all_nc <- filter(dat_diplomates_no_canada, Year <= 2017) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_18_all_nc <- filter(dat_diplomates_no_canada, Year <= 2018) %>%
+  distinct(latlon, .keep_all = TRUE)
+dip_19_all_nc <- filter(dat_diplomates_no_canada, Year <= 2019) %>%
+  distinct(latlon, .keep_all = TRUE)
+
+#setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+#write.csv(dip_11_all_nc, "200505_Hospitals_2011_NC.csv")
+#write.csv(dip_12_all_nc, "200505_Hospitals_2012_NC.csv")
+#write.csv(dip_13_all_nc, "200505_Hospitals_2013_NC.csv")
+#write.csv(dip_14_all_nc, "200505_Hospitals_2014_NC.csv")
+#write.csv(dip_15_all_nc, "200505_Hospitals_2015_NC.csv")
+#write.csv(dip_16_all_nc, "200505_Hospitals_2016_NC.csv")
+#write.csv(dip_17_all_nc, "200505_Hospitals_2017_NC.csv")
+#write.csv(dip_18_all_nc, "200505_Hospitals_2018_NC.csv")
+#write.csv(dip_19_all_nc, "200505_Hospitals_2019_NC.csv")
+
+```
+
+#  Separate pediatric and adult
+```{r}
+pediatric_only <- dat[grep("Pediatrics", dat$Additional.Board.Certification),]
+adult_only <- anti_join(dat, pediatric_only)
+pediatrics_internal_med <- pediatric_only[grep("Internal Medicine", pediatric_only$Additional.Board.Certification),]
+family_medicine <- adult_only[grep("Family Medicine", adult_only$Additional.Board.Certification),]
+
+adult_only <- rbind(adult_only, pediatrics_internal_med)
+adult_only %<>%
+  filter(Additional.Board.Certification != "")
+pediatric_only <- rbind(pediatric_only, family_medicine)
+
+missing_certification <- dat %>% filter(Additional.Board.Certification == "")
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+#write.csv(missing_certification, "201008_MissingCertification.csv")
+missing_certification_complete <- read.csv("201008_MissingCertification.csv")
+
+missing_certification_pediatric_only <- missing_certification_complete[grep("Pediatrics", missing_certification_complete$Additional.Board.Certification),]
+
+missing_certification_complete_adult_only <- anti_join(missing_certification_complete, missing_certification_pediatric_only)
+
+missing_certification_pediatrics_internal_med <- missing_certification_pediatric_only[grep("Internal Medicine", missing_certification_pediatric_only$Additional.Board.Certification),]
+
+missing_certification_family_medicine <- missing_certification_complete_adult_only[grep("Family Medicine", missing_certification_complete_adult_only$Additional.Board.Certification),]
+
+missing_certification_adult_only <- rbind(missing_certification_complete_adult_only, missing_certification_pediatrics_internal_med) # 108
+missing_certification_adult_only %<>%
+  filter(Additional.Board.Certification != "")
+
+missing_certification_pediatric_only <- rbind(missing_certification_pediatric_only, missing_certification_family_medicine) # 59
+
+dat_diplomate_adult <- rbind(adult_only, )
+
+
+adult_dip_11_all_nc <- filter(dat_diplomates_no_canada, Year <= 2011 & 
+                                (Name %in% adult_only$Name | Name %in% missing_certification_adult_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+adult_dip_12_all_nc <- filter(dat_diplomates_no_canada, Year <= 2012 & 
+                                (Name %in% adult_only$Name | Name %in% missing_certification_adult_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+adult_dip_13_all_nc <- filter(dat_diplomates_no_canada, Year <= 2013 & 
+                                (Name %in% adult_only$Name | Name %in% missing_certification_adult_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+adult_dip_14_all_nc <- filter(dat_diplomates_no_canada, Year <= 2014 & 
+                                (Name %in% adult_only$Name | Name %in% missing_certification_adult_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+adult_dip_15_all_nc <- filter(dat_diplomates_no_canada, Year <= 2015 & 
+                                (Name %in% adult_only$Name | Name %in% missing_certification_adult_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+adult_dip_16_all_nc <- filter(dat_diplomates_no_canada, Year <= 2016 & 
+                                (Name %in% adult_only$Name | Name %in% missing_certification_adult_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+adult_dip_17_all_nc <- filter(dat_diplomates_no_canada, Year <= 2017 & 
+                                (Name %in% adult_only$Name | Name %in% missing_certification_adult_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+adult_dip_18_all_nc <- filter(dat_diplomates_no_canada, Year <= 2018 & 
+                                (Name %in% adult_only$Name | Name %in% missing_certification_adult_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+adult_dip_19_all_nc <- filter(dat_diplomates_no_canada, Year <= 2019 & 
+                                (Name %in% adult_only$Name | Name %in% missing_certification_adult_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+
+pediatric_dip_11_all_nc <- filter(dat_diplomates_no_canada, Year <= 2011 & 
+                                (Name %in% pediatric_only$Name | Name %in% missing_certification_pediatric_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+pediatric_dip_12_all_nc <- filter(dat_diplomates_no_canada, Year <= 2012 & 
+                                (Name %in% pediatric_only$Name | Name %in% missing_certification_pediatric_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+pediatric_dip_13_all_nc <- filter(dat_diplomates_no_canada, Year <= 2013 & 
+                                (Name %in% pediatric_only$Name | Name %in% missing_certification_pediatric_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+pediatric_dip_14_all_nc <- filter(dat_diplomates_no_canada, Year <= 2014 & 
+                                (Name %in% pediatric_only$Name | Name %in% missing_certification_pediatric_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+pediatric_dip_15_all_nc <- filter(dat_diplomates_no_canada, Year <= 2015 & 
+                                (Name %in% pediatric_only$Name | Name %in% missing_certification_pediatric_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+pediatric_dip_16_all_nc <- filter(dat_diplomates_no_canada, Year <= 2016 & 
+                                (Name %in% pediatric_only$Name | Name %in% missing_certification_pediatric_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+pediatric_dip_17_all_nc <- filter(dat_diplomates_no_canada, Year <= 2017 & 
+                                (Name %in% pediatric_only$Name | Name %in% missing_certification_pediatric_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+pediatric_dip_18_all_nc <- filter(dat_diplomates_no_canada, Year <= 2018 & 
+                                (Name %in% pediatric_only$Name | Name %in% missing_certification_pediatric_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+pediatric_dip_19_all_nc <- filter(dat_diplomates_no_canada, Year <= 2019 & 
+                                (Name %in% pediatric_only$Name | Name %in% missing_certification_pediatric_only$Name)) %>%
+  distinct(latlon, .keep_all = TRUE)
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+#write.csv(adult_dip_11_all_nc, "201009_Hospitals_2011_NC_Adult.csv")
+#write.csv(adult_dip_12_all_nc, "201009_Hospitals_2012_NC_Adult.csv")
+#write.csv(adult_dip_13_all_nc, "201009_Hospitals_2013_NC_Adult.csv")
+#write.csv(adult_dip_14_all_nc, "201009_Hospitals_2014_NC_Adult.csv")
+#write.csv(adult_dip_15_all_nc, "201009_Hospitals_2015_NC_Adult.csv")
+#write.csv(adult_dip_16_all_nc, "201009_Hospitals_2016_NC_Adult.csv")
+##write.csv(adult_dip_17_all_nc, "201009_Hospitals_2017_NC_Adult.csv")
+#write.csv(adult_dip_18_all_nc, "201009_Hospitals_2018_NC_Adult.csv")
+#write.csv(adult_dip_19_all_nc, "201009_Hospitals_2019_NC_Adult.csv")
+
+setwd("~/Documents/Dartmouth/Research/Obesity Certification/Data")
+#write.csv(pediatric_dip_11_all_nc, "201009_Hospitals_2011_NC_Peds.csv")
+#write.csv(pediatric_dip_12_all_nc, "201009_Hospitals_2012_NC_Peds.csv")
+#write.csv(pediatric_dip_13_all_nc, "201009_Hospitals_2013_NC_Peds.csv")
+#write.csv(pediatric_dip_14_all_nc, "201009_Hospitals_2014_NC_Peds.csv")
+#write.csv(pediatric_dip_15_all_nc, "201009_Hospitals_2015_NC_Peds.csv")
+#write.csv(pediatric_dip_16_all_nc, "201009_Hospitals_2016_NC_Peds.csv")
+#write.csv(pediatric_dip_17_all_nc, "201009_Hospitals_2017_NC_Peds.csv")
+#write.csv(pediatric_dip_18_all_nc, "201009_Hospitals_2018_NC_Peds.csv")
+#write.csv(pediatric_dip_19_all_nc, "201009_Hospitals_2019_NC_Peds.csv")
+
+```
+
+
